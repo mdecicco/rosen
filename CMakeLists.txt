@@ -16,6 +16,9 @@ file(GLOB_RECURSE rosen_game_src
     "src/utils/*.h"
     "src/utils/*.cpp"
     "src/utils/*.hpp"
+    "src/managers/*.h"
+    "src/managers/*.cpp"
+    "src/managers/*.hpp"
 )
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
