@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ufwb version="1.17">
+    <grammar name="AUD grammar" start="id:8" author="Computer" fileextension="aud">
+        <description>Grammar for AUD files</description>
+        <structure name="AUD file" id="8" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="sample_size" id="10" type="integer" length="1"/>
+            <number name="sample_rate" id="11" type="integer" length="4"/>
+            <number name="sample_count" id="12" type="integer" length="4"/>
+            <number name="decompressed_size" id="13" type="integer" length="4"/>
+            <number name="compressed_size" id="14" type="integer" length="4"/>
+            <structure name="data" id="15" length="compressed_size"/>
+        </structure>
+    </grammar>
+</ufwb>
