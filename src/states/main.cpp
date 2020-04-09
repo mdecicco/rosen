@@ -62,7 +62,7 @@ namespace rosen {
 
 		if (m_video) delete m_video; m_video = nullptr;
 		if (m_audio) delete m_audio; m_audio = nullptr;
-		//if (m_currentTexture) getScene()->destroy(m_currentTexture); m_currentTexture = nullptr;
+		if (m_currentTexture) getScene()->destroy(m_currentTexture); m_currentTexture = nullptr;
 	}
 
 	void main_state::becameInactive() {
