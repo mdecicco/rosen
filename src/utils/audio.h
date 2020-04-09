@@ -14,11 +14,9 @@ namespace rosen {
 			~audio_container();
 
 			r2::audio_buffer* buffer();
-			r2::audio_source* audio();
 
 		protected:
 			r2::audio_buffer* m_audioBuffer;
-			r2::audio_source* m_audio;
 		};
 	#pragma pack(pop)
 };

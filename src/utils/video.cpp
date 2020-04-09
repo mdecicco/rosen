@@ -5,9 +5,7 @@
 using namespace r2;
 
 namespace rosen {
-	video_container::video_container(const mstring& name, scene* _scene) {
-		m_scene = _scene;
-
+	video_container::video_container(const mstring& name) {
 		m_video = r2engine::files()->open("./resources/video/" + name + "/video.vid", DM_BINARY);
 		frames = nullptr;
 		memset(&info, 0, sizeof(header));
@@ -60,7 +58,7 @@ namespace rosen {
 		}
 		delete [] compressed;
 
-		if (!tex) tex = m_scene->create_texture();
+		if (!tex) tex = r2engine::current_scene()->create_texture();
 		tex->create(decompressed, info.width, info.height, 3, tt_unsigned_byte);
 		delete [] decompressed;
 

@@ -32,10 +32,7 @@ namespace rosen {
 		delete [] compressed;
 
 		m_audioBuffer = new audio_buffer();
-		m_audio = new audio_source(m_audioBuffer);
-
 		m_audioBuffer->fill(asf_mono_16bit, decompressed, out_size, info.sample_rate);
-		m_audio->buffer(m_audioBuffer);
 
 		delete [] decompressed;
 	}
@@ -45,9 +42,5 @@ namespace rosen {
 
 	r2::audio_buffer* audio_container::buffer() {
 		return m_audioBuffer;
-	}
-
-	r2::audio_source* audio_container::audio() {
-		return m_audio;
 	}
 };

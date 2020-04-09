@@ -2,14 +2,18 @@
 
 namespace r2 {
 	class texture_buffer;
+	class audio_source;
 };
 
 namespace rosen {
-	class video_container;
-	class audio_container;
+	class source_content;
+	class source_man;
+	struct speech_plan;
+	struct speech_execution_context;
+
 	class main_state : public r2::state {
 		public:
-			main_state();
+			main_state(source_man* sourceMgr);
 			~main_state();
 
 			virtual void onInitialize();
@@ -31,8 +35,13 @@ namespace rosen {
 			virtual void onEvent(r2::event* evt);
 
 		protected:
-			video_container* m_video;
-			audio_container* m_audio;
+			source_man* m_sources;
+			source_content* m_source;
+
+			speech_plan* m_plan;
+			speech_execution_context* m_speech;
+
+			r2::audio_source* m_audio;
 			r2::texture_buffer* m_currentTexture;
 	};
 

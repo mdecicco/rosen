@@ -23,7 +23,7 @@ namespace rosen {
 				r2::u32 offset;
 			};
 
-			video_container(const r2::mstring& name, r2::scene* scene);
+			video_container(const r2::mstring& name);
 			~video_container();
 
 			r2::texture_buffer* frame(r2::u32 frameIdx, r2::texture_buffer* tex = nullptr);
@@ -33,7 +33,6 @@ namespace rosen {
 
 		protected:
 			r2::data_container* m_video;
-			r2::scene* m_scene;
 	};
 	#pragma pack(pop)
 };
