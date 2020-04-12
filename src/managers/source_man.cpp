@@ -39,6 +39,8 @@ namespace rosen {
 		return tokens;
 	}
 
+
+
 	source_content::source_content(const mstring& name) {
 		m_video = new video_container(name);
 		m_audio = new audio_container(name);
@@ -133,7 +135,7 @@ namespace rosen {
 				printf("[%s]\n", info.text.c_str());
 			} else audio->setPlayPosition(info.start);
 
-			s->source->frame(info.start, texture);
+			if (texture) s->source->frame(info.start, texture);
 		} else {
 			f32 ppos = audio->playPosition();
 			if (ppos >= info.end) {
@@ -158,8 +160,8 @@ namespace rosen {
 					audio->setPlayPosition(info.start);
 				}
 
-				s->source->frame(info.start, texture);
-			} else s->source->frame(ppos, texture);
+				if (texture) s->source->frame(info.start, texture);
+			} else if (texture) s->source->frame(ppos, texture);
 		}
 
 		return idx;
@@ -207,7 +209,7 @@ namespace rosen {
 		return nullptr;
 	}
 
-	speech_plan* source_man::plan_speech(const mstring& text) {
+	speech_plan* source_man::plan_speech(const mstring& text, i32 using_source_idx) {
 		speech_plan* plan = new speech_plan;
 
 		mvector<mstring> words;
@@ -247,11 +249,33 @@ namespace rosen {
 		for (u32 w = 0;w < words.size();w++) {
 			dynamic_pod_array<possible_selection> applicable;
 			bool found_phrase = false;
-			for (u32 sc = 0;sc < m_sources.size() && !found_phrase;sc++) {
-				source_content* source = m_sources[sc];
+			if (using_source_idx < 0) {
+				for (u32 sc = 0;sc < m_sources.size() && !found_phrase;sc++) {
+					source_content* source = m_sources[sc];
+					for (u32 s = 0;s < source->snippets.size();s++) {
+						source_content::snippet& snip = source->snippets[s];
+						if (snip.text == words[w]) applicable.push({ sc, s, 1 });
+						else if (snip.text.find(words[w]) != string::npos) {
+							mvector<mstring> swords = split(snip.text, " ");
+							bool same_phrase = true;
+							for (u32 sw = 0;sw < swords.size() && same_phrase;sw++) {
+								same_phrase = !(w + sw == words.size() || swords[sw] != words[w + sw]);
+							}
+
+							if (same_phrase) {
+								plan->add(source, s);
+								found_phrase = true;
+								w += swords.size() - 1;
+								break;
+							}
+						}
+					}
+				}
+			} else {
+				source_content* source = m_sources[using_source_idx];
 				for (u32 s = 0;s < source->snippets.size();s++) {
 					source_content::snippet& snip = source->snippets[s];
-					if (snip.text == words[w]) applicable.push({ sc, s, 1 });
+					if (snip.text == words[w]) applicable.push({ (u32)using_source_idx, s, 1 });
 					else if (snip.text.find(words[w]) != string::npos) {
 						mvector<mstring> swords = split(snip.text, " ");
 						bool same_phrase = true;

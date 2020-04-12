@@ -1,15 +1,14 @@
 #include <r2/managers/stateman.h>
 
 namespace r2 {
-	class texture_buffer;
-	class audio_source;
+	class fly_camera_entity;
+	class shader_program;
 };
 
 namespace rosen {
-	class source_content;
 	class source_man;
-	struct speech_plan;
-	struct speech_execution_context;
+	class rosen_entity;
+	class source_snipper;
 
 	class main_state : public r2::state {
 		public:
@@ -35,14 +34,13 @@ namespace rosen {
 			virtual void onEvent(r2::event* evt);
 
 		protected:
+			source_snipper* m_snipper;
 			source_man* m_sources;
-			source_content* m_source;
 
-			speech_plan* m_plan;
-			speech_execution_context* m_speech;
+			r2::mvector<rosen_entity*> m_rosens;
 
-			r2::audio_source* m_audio;
-			r2::texture_buffer* m_currentTexture;
+			r2::fly_camera_entity* m_camera;
+			r2::shader_program* m_rosenShader;
 	};
 
 };

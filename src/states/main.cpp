@@ -1,10 +1,58 @@
 #include <states/main.h>
 #include <managers/source_man.h>
+#include <entities/rosen.h>
+#include <systems/speech.h>
+#include <ui/snipper.h>
 
 #include <r2/managers/drivers/gl/driver.h>
 #include <r2/engine.h>
+#include <r2/utilities/fly_camera.h>
 
 namespace rosen {
+	render_node* gen_rosen_node(scene* s, shader_program* shader) {
+		vertex_format* vfmt = new vertex_format();
+		vfmt->add_attr(vat_vec3f);
+		vfmt->add_attr(vat_vec2f);
+
+		instance_format* ifmt = new instance_format();
+		ifmt->add_attr(iat_mat4f, true);
+
+		uniform_format* mfmt = new uniform_format();
+		mfmt->add_attr("shirt_tint", uat_vec3f);
+
+		mesh_construction_data* mesh = new mesh_construction_data(vfmt, it_unsigned_byte, ifmt);
+		mesh->set_max_vertex_count(4);
+		mesh->set_max_index_count(6);
+		mesh->set_max_instance_count(1);
+
+		struct vertex { vec3f pos; vec2f tex; };
+		f32 width = 1.80555556f;
+		f32 height = 1.0f;
+		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f, 1.0f, 0.0f), vec2f(0, 0) });
+		mesh->append_vertex<vertex>({ vec3f( width * 0.5f, 1.0f, 0.0f), vec2f(1, 0) });
+		mesh->append_vertex<vertex>({ vec3f( width * 0.5f, 0.0f, 0.0f), vec2f(1, 1) });
+		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f, 0.0f, 0.0f), vec2f(0, 1) });
+
+		mesh->append_index<u8>(0);
+		mesh->append_index<u8>(1);
+		mesh->append_index<u8>(3);
+		mesh->append_index<u8>(1);
+		mesh->append_index<u8>(2);
+		mesh->append_index<u8>(3);
+
+		mesh->append_instance(mat4f(1.0f));
+
+		render_node* node = s->add_mesh(mesh);
+		node_material* mtrl = new node_material("u_material", mfmt);
+		mtrl->set_shader(shader);
+		node->set_material_instance(mtrl->instantiate(s));
+		node->material_instance()->uniforms()->uniform_vec3f("shirt_tint", vec3f(0.3f, 0.5f, 2.0f));
+
+		return node;
+	};
+	
+
+
 	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(200)) {
 		// This state's memory has not been allocated yet. Any
 		// allocations made here will be either in the global
@@ -16,11 +64,9 @@ namespace rosen {
 		// memory_man::pop_current()
 
 		m_sources = sourceMgr;
-		m_source = nullptr;
-		m_audio = nullptr;
-		m_plan = nullptr;
-		m_speech = nullptr;
-		m_currentTexture = nullptr;
+		m_camera = nullptr;
+		m_rosenShader = nullptr;
+		m_snipper = nullptr;
 	}
 
 	main_state::~main_state() {
@@ -45,10 +91,18 @@ namespace rosen {
 		// deactivated immediately after this function returns.
 		// This state will be activated immediately after that
 
-		
-		m_source = m_sources->source("A Ball");
-		m_audio = new audio_source(m_source->audio());
+		m_rosenShader = getScene()->load_shader("./resources/shader/rosen.glsl", "rosen_shader");
 		r2engine::audio()->setListener(mat4f(1.0f));
+		m_camera = new fly_camera_entity();
+		m_snipper = new source_snipper(m_sources, getScene());
+
+		/*
+		for (u32 i = 0;i < 50;i++) {
+			char a[4] = { 0 };
+			snprintf(a, 4, "%d", i);
+			m_rosens.push_back(new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_rosenShader)));
+		}
+		*/
 	}
 
 	void main_state::becameActive() {
@@ -64,10 +118,13 @@ namespace rosen {
 		// deallocate anything allocated within this state's
 		// memory, but you should...
 
-		if (m_audio) delete m_audio;
-		if (m_currentTexture) getScene()->destroy(m_currentTexture); m_currentTexture = nullptr;
-		if (m_plan) delete m_plan; m_plan = nullptr;
-		if (m_speech) delete m_speech; m_speech = nullptr;
+		if (m_snipper) delete m_snipper; m_snipper = nullptr;
+
+		for (u32 i = 0;i < m_rosens.size();i++) m_rosens[i]->destroy();
+		m_rosens.clear();
+
+		m_camera->destroy(); m_camera = nullptr;
+		getScene()->destroy(m_rosenShader); m_rosenShader = nullptr;
 	}
 
 	void main_state::becameInactive() {
@@ -98,71 +155,17 @@ namespace rosen {
 		// outside of the context of the frame.
 
 		//printf("TestState::onUpdate(%.2f ms, %.2f ms)\n", frameDt * 1000.0f, updateDt * 1000.0f);
-		if (m_audio->isPlaying()) {
-			if (m_speech) {
-				m_speech->update(m_audio, m_currentTexture);
-				if (m_speech->completed) {
-					delete m_speech; m_speech = nullptr;
-					delete m_plan; m_plan = nullptr;
-				}
-			} else  m_currentTexture = m_source->frame(m_audio->playPosition(), m_currentTexture);
-		}
+		m_snipper->update(frameDt, updateDt);
 	}
 
 	void main_state::onRender() {
-		// Will be called once per frame
-		// ImGui::Text("Memory: %s / %s", format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
-		ImGui::Text("FPS: %.2f", r2engine::get()->fps());
-		if (ImGui::Button("Reset State", ImVec2(190, 20))) {
-			r2engine::get()->activate_state("main_state");
-		}
+		r2engine::audio()->setListener(m_camera->transform->transform);
+		m_snipper->render();
 
-		static i32 curItem = 0;
-		static i32 iters = 0;
-		static char visbuf[1024] = { 0 };
-
-		if (!m_audio->isPlaying()) m_audio->play();
-		else {
-			ImGui::Columns(2);
-			auto get_name = [](void* data, i32 idx, const char** out) {
-				source_man* sources = (source_man*)data;
-				*out = sources->source(idx)->cname();
-				return true;
-			};
-			if (ImGui::ListBox("Sources", &curItem, get_name, m_sources, m_sources->source_count(), 24)) {
-				m_source = m_sources->source(curItem);
-				m_audio->stop();
-				m_audio->buffer(m_source->audio());
-				m_audio->play();
-			}
-			
-			
-			ImGui::NextColumn();
-			if (m_currentTexture) {
-				ImGui::Image((void*)((gl_render_driver*)r2engine::renderer()->driver())->get_texture_id(m_currentTexture), ImVec2(480, 270));
-			}
-			f32 ppos = m_audio->playPosition();
-			f32 pitch = m_audio->pitch();
-			if (ImGui::DragFloat("pitch", &pitch, 0.01f)) m_audio->setPitch(pitch);
-			ImGui::Text("Pos: %.2f", ppos);
-
-
-			/*
-			ImGui::DragInt("iters", &iters);
-			for (u32 i = 0;i < iters;i++) {
-				m_currentTexture = m_source->frame(m_audio->playPosition(), m_currentTexture);
-			}
-			*/
-			
-			ImGui::InputText("##vis", visbuf, 1024);
-			ImGui::SameLine();
-			if (ImGui::Button("Visualize")) {
-				if (m_plan) delete m_plan; m_plan = nullptr;
-				if (m_speech) delete m_speech; m_speech = nullptr;
-				m_plan = m_sources->plan_speech(visbuf);
-				m_speech = new speech_execution_context(m_plan);
-			}
-		}
+		GLFWwindow* window = *r2engine::get()->window();
+		char title[128] = { 0 };
+		snprintf(title, 128, "Rosen | %6.2f FPS | %8s / %8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
+		glfwSetWindowTitle(window, title);
 	}
 
 	void main_state::onEvent(event* evt) {

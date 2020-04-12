@@ -74,7 +74,7 @@ namespace rosen {
 			inline source_content* source(size_t index) const { return m_sources[index]; }
 			inline size_t source_count() const { return m_sources.size(); }
 
-			speech_plan* plan_speech(const r2::mstring& text);
+			speech_plan* plan_speech(const r2::mstring& text, r2::i32 using_source_idx = -1);
 
 		protected:
 			r2::mvector<source_content*> m_sources;

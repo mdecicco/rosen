@@ -35,8 +35,8 @@ namespace rosen {
 
 	texture_buffer* video_container::frame(u32 frameIdx, texture_buffer* tex) {
 		if (frameIdx >= info.framecount) {
-			r2Error("video_tester::frame(): Specified index out of range");
-			return nullptr;
+			r2Warn("video_tester::frame(): Specified index out of range");
+			return tex;
 		}
 
 		m_video->set_position(frames[frameIdx].offset);
@@ -46,7 +46,7 @@ namespace rosen {
 		if (!m_video->read_data(compressed, frames[frameIdx].size)) {
 			delete [] compressed;
 			delete [] decompressed;
-			return nullptr;
+			return tex;
 		}
 
 		uLongf out_size = decompressed_size;
@@ -54,7 +54,7 @@ namespace rosen {
 			r2Error("Failed to decompress frame %d", frameIdx);
 			delete [] compressed;
 			delete [] decompressed;
-			return nullptr;
+			return tex;
 		}
 		delete [] compressed;
 
