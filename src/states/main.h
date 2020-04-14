@@ -8,7 +8,7 @@ namespace r2 {
 namespace rosen {
 	class source_man;
 	class rosen_entity;
-	class source_snipper;
+	class ui_man;
 
 	class main_state : public r2::state {
 		public:
@@ -34,8 +34,8 @@ namespace rosen {
 			virtual void onEvent(r2::event* evt);
 
 		protected:
-			source_snipper* m_snipper;
 			source_man* m_sources;
+			ui_man* m_ui;
 
 			r2::mvector<rosen_entity*> m_rosens;
 

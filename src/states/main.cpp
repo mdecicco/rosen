@@ -1,8 +1,8 @@
 #include <states/main.h>
 #include <managers/source_man.h>
+#include <managers/ui_man.h>
 #include <entities/rosen.h>
 #include <systems/speech.h>
-#include <ui/snipper.h>
 
 #include <r2/managers/drivers/gl/driver.h>
 #include <r2/engine.h>
@@ -66,7 +66,7 @@ namespace rosen {
 		m_sources = sourceMgr;
 		m_camera = nullptr;
 		m_rosenShader = nullptr;
-		m_snipper = nullptr;
+		m_ui = nullptr;
 	}
 
 	main_state::~main_state() {
@@ -91,10 +91,10 @@ namespace rosen {
 		// deactivated immediately after this function returns.
 		// This state will be activated immediately after that
 
+		m_ui = new ui_man(m_sources, getScene());
 		m_rosenShader = getScene()->load_shader("./resources/shader/rosen.glsl", "rosen_shader");
 		r2engine::audio()->setListener(mat4f(1.0f));
 		m_camera = new fly_camera_entity();
-		m_snipper = new source_snipper(m_sources, getScene());
 
 		/*
 		for (u32 i = 0;i < 50;i++) {
@@ -118,7 +118,7 @@ namespace rosen {
 		// deallocate anything allocated within this state's
 		// memory, but you should...
 
-		if (m_snipper) delete m_snipper; m_snipper = nullptr;
+		if (m_ui) delete m_ui; m_ui = nullptr;
 
 		for (u32 i = 0;i < m_rosens.size();i++) m_rosens[i]->destroy();
 		m_rosens.clear();
@@ -155,12 +155,12 @@ namespace rosen {
 		// outside of the context of the frame.
 
 		//printf("TestState::onUpdate(%.2f ms, %.2f ms)\n", frameDt * 1000.0f, updateDt * 1000.0f);
-		m_snipper->update(frameDt, updateDt);
+		m_ui->update(frameDt, updateDt);
 	}
 
 	void main_state::onRender() {
 		r2engine::audio()->setListener(m_camera->transform->transform);
-		m_snipper->render();
+		m_ui->render();
 
 		GLFWwindow* window = *r2engine::get()->window();
 		char title[128] = { 0 };

@@ -67,7 +67,7 @@ namespace rosen {
 				trim(cols[0]);
 
 				f32 start = atof(cols[1].c_str());
-				f32 end = atof(cols[2].c_str()) + 0.05;
+				f32 end = atof(cols[2].c_str());
 
 				if (end >= m_audio->buffer()->duration()) {
 					end = m_audio->buffer()->duration() - 0.1f;
