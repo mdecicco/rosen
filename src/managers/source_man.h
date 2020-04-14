@@ -30,6 +30,8 @@ namespace rosen {
 			r2::u32 frameId(r2::f32 playbackTime) const;
 			r2::f32 duration() const;
 
+			void save_snippets();
+
 			r2::mvector<snippet> snippets;
 
 		protected:
@@ -45,11 +47,17 @@ namespace rosen {
 		};
 
 		void add(source_content* source, r2::u32 snippetIdx);
+		void append(speech_plan* plan);
 
 		r2::u32 update(r2::audio_source* audio, r2::texture_buffer* texture, r2::u32 lastSnippetIndex);
 		
 		r2::dynamic_pod_array<snippet> snippets;
 		r2::f32 duration = 0;
+	};
+
+	struct premixed_word {
+		speech_plan* plan;
+		r2::mstring text;
 	};
 
 	struct speech_execution_context {
@@ -75,6 +83,10 @@ namespace rosen {
 			inline size_t source_count() const { return m_sources.size(); }
 
 			speech_plan* plan_speech(const r2::mstring& text, r2::i32 using_source_idx = -1);
+
+			void save_premixes();
+
+			r2::mvector<premixed_word> mixedWords;
 
 		protected:
 			r2::mvector<source_content*> m_sources;

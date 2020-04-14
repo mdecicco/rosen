@@ -16,6 +16,8 @@ namespace rosen {
 			speech_planner(source_man* smgr, r2::scene* s);
 			~speech_planner();
 
+			void premixes_modified();
+
 			void update(r2::f32 frameDt, r2::f32 updateDt);
 			void render(bool* isOpen);
 
@@ -31,5 +33,6 @@ namespace rosen {
 
 			// ui params
 			char m_wordSearch[1024];
+			char m_premixText[64];
 	};
 };

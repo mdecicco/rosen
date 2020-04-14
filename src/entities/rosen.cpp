@@ -4,14 +4,19 @@ using namespace r2;
 #include <systems/speech.h>
 #include <managers/source_man.h>
 
+#define TEST_POS_DIMENSION_MAX 5.0f
+
 namespace rosen {
 	f32 random(f32 min, f32 max) {
 		f32 r = f32(rand()) / f32(RAND_MAX);
 		r *= max - min;
 		return min + r;
 	}
+	f32 random(f32 range) {
+		return random(-range, range);
+	}
 
-	rosen_entity::rosen_entity(const mstring& name, render_node* _node) : scene_entity(name), pos(vec3f(random(-10.0f, 10.0f), random(-10.0f, 10.0f), random(-10.0f, 10.0f)), 5.0f, r2::interpolate::easeInOutCubic) {
+	rosen_entity::rosen_entity(const mstring& name, render_node* _node) : scene_entity(name), pos(vec3f(random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX)), 5.0f, r2::interpolate::easeInOutCubic) {
 		texture = nullptr;
 		node = _node;
 		shirt_color_hsv = vec3f(random(0.0f, 1.0f), random(0.0f, 1.0f), random(1.0f, 5.0f));
@@ -31,6 +36,7 @@ namespace rosen {
 
 		speech()->texture = texture;
 		speech()->audio->setPosition(pos);
+		speech()->audio->setRolloffFactor(5.0f);
 
 		transform->transform = glm::translate(mat4f(1.0f), (vec3f)pos);
 		mesh->set_instance_data(transform->transform);
@@ -43,7 +49,7 @@ namespace rosen {
 
 	void rosen_entity::onUpdate(f32 frameDt, f32 updateDt) {
 		if (pos.stopped()) {
-			pos = vec3f(random(-10.0f, 10.0f), random(-10.0f, 10.0f), random(-10.0f, 10.0f));
+			pos = vec3f(random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX));
 		}
 
 		transform->transform = glm::translate(mat4f(1.0f), (vec3f)pos);
@@ -93,16 +99,28 @@ namespace rosen {
 		speech_component* comp = speech();
 		comp->plan = new speech_plan();
 
-		for (u32 w = 0;w < word_count;w++) {
-			bool found = false;
-			while (!found) {
-				u32 srcIdx = rand() % sys->sources->source_count();
-				source_content* source = sys->sources->source(srcIdx);
-				if (source->snippets.size() == 0) continue;
+		struct possible {
+			u32 srcIdx;
+			u32 snipIdx;
+			speech_plan* plan;
+		};
+		mvector<possible> all;
 
-				comp->plan->add(source, rand() % source->snippets.size());
-				found = true;
+		for (u32 i = 0;i < sys->sources->source_count();i++) {
+			source_content* src = sys->sources->source(i);
+			for (u32 s = 0;s < src->snippets.size();s++) {
+				all.push_back({ i, s, nullptr });
 			}
+		}
+
+		for (u32 i = 0;i < sys->sources->mixedWords.size();i++) {
+			all.push_back({ 0, 0, sys->sources->mixedWords[i].plan });
+		}
+
+		for (u32 w = 0;w < word_count;w++) {
+			possible& p = all[rand() % all.size()];
+			if (p.plan) comp->plan->append(p.plan);
+			else comp->plan->add(sys->sources->source(p.srcIdx), p.snipIdx);
 		}
 
 		comp->execution = new speech_execution_context(comp->plan);

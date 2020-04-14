@@ -25,7 +25,6 @@ int main(int argc, char** argv) {
 	int ret = eng->run();
 
 	delete sourceMgr;
-	delete rosen::speech_system::get();
 
 	eng->shutdown();
 	return ret;

@@ -37,18 +37,7 @@ namespace rosen {
 	}
 
 	void source_snipper::snips_modified() {
-		data_container* csv = r2engine::files()->create(DM_TEXT);
-
-		char linebuf[512] = { 0 };
-		for (u32 i = 0;i < m_source->snippets.size();i++) {
-			source_content::snippet& snip = m_source->snippets[i];
-			snprintf(linebuf, 512, "%s,%f,%f\n", snip.text.c_str(), snip.start, snip.end);
-			csv->write_string(linebuf);
-			memset(linebuf, 0, 512);
-		}
-
-		r2engine::files()->save(csv, "./resources/snip/" + m_source->name() + ".csv");
-		r2engine::files()->destroy(csv);
+		m_source->save_snippets();
 	}
 
 	void source_snipper::update(f32 frameDt, f32 updateDt) {
@@ -134,12 +123,37 @@ namespace rosen {
 					}
 					ImGui::PopItemWidth();
 
-					snprintf(bid, 16, "x##%d%s", i, snip.text.c_str());
-					ImGui::SameLine(width - (del_btn_width + end_padding));
-					ImGui::PushItemWidth(del_btn_width);
-					if (ImGui::Button(bid)) {
-						m_source->snippets.erase(m_source->snippets.begin() + i);
-						snips_modified();
+					bool used_by_premix = false;
+
+					for (u32 p = 0;p < m_mgr->mixedWords.size();p++) {
+						for (u32 s = 0;s < m_mgr->mixedWords[p].plan->snippets.size();s++) {
+							if (m_mgr->mixedWords[p].plan->snippets[s]->source == m_source && m_mgr->mixedWords[p].plan->snippets[s]->snippetIdx == i) {
+								used_by_premix = true;
+								break;
+							}
+						}
+					}
+
+					if (!used_by_premix) {
+						snprintf(bid, 16, "x##%d%s", i, snip.text.c_str());
+						ImGui::SameLine(width - (del_btn_width + end_padding));
+						ImGui::PushItemWidth(del_btn_width);
+						if (ImGui::Button(bid)) {
+							m_source->snippets.erase(m_source->snippets.begin() + i);
+							snips_modified();
+
+							bool save_premixes = false;
+							for (u32 p = 0;p < m_mgr->mixedWords.size();p++) {
+								for (u32 s = 0;s < m_mgr->mixedWords[p].plan->snippets.size();s++) {
+									if (m_mgr->mixedWords[p].plan->snippets[s]->source == m_source && m_mgr->mixedWords[p].plan->snippets[s]->snippetIdx > i) {
+										m_mgr->mixedWords[p].plan->snippets[s]->snippetIdx--;
+										save_premixes = true;
+									}
+								}
+							}
+
+							if (save_premixes) m_mgr->save_premixes();
+						}
 					}
 					ImGui::PopItemWidth();
 				}

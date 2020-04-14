@@ -53,7 +53,7 @@ namespace rosen {
 	
 
 
-	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(200)) {
+	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(40)) {
 		// This state's memory has not been allocated yet. Any
 		// allocations made here will be either in the global
 		// scope, or the scope of the currently active state.
@@ -96,13 +96,11 @@ namespace rosen {
 		r2engine::audio()->setListener(mat4f(1.0f));
 		m_camera = new fly_camera_entity();
 
-		/*
-		for (u32 i = 0;i < 50;i++) {
+		for (u32 i = 0;i < 55;i++) {
 			char a[4] = { 0 };
 			snprintf(a, 4, "%d", i);
 			m_rosens.push_back(new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_rosenShader)));
 		}
-		*/
 	}
 
 	void main_state::becameActive() {
@@ -159,7 +157,7 @@ namespace rosen {
 	}
 
 	void main_state::onRender() {
-		r2engine::audio()->setListener(m_camera->transform->transform);
+		r2engine::audio()->setListener(glm::inverse(m_camera->transform->transform));
 		m_ui->render();
 
 		GLFWwindow* window = *r2engine::get()->window();
