@@ -96,11 +96,13 @@ namespace rosen {
 		r2engine::audio()->setListener(mat4f(1.0f));
 		m_camera = new fly_camera_entity();
 
+		/*
 		for (u32 i = 0;i < 55;i++) {
 			char a[4] = { 0 };
 			snprintf(a, 4, "%d", i);
 			m_rosens.push_back(new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_rosenShader)));
 		}
+		*/
 	}
 
 	void main_state::becameActive() {
