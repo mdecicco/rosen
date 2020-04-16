@@ -19,6 +19,8 @@ namespace rosen {
 			speech_execution_context* execution;
 			r2::audio_source* audio;
 			r2::texture_buffer* texture;
+			r2::f32 lod_skip_interval;
+			r2::f32 lod_skip_time;
 	};
 
 	class speech_system : public r2::entity_system, r2::periodic_update {
@@ -52,6 +54,7 @@ namespace rosen {
 			virtual void doUpdate(r2::f32 frameDelta, r2::f32 updateDelta);
 
 			source_man* sources;
+			r2::f32 dist_lod_skip_mult;
 
 		protected:
 			static speech_system* instance;

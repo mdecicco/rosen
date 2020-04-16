@@ -7,6 +7,7 @@ namespace r2 {
 
 namespace rosen {
 	class source_snipper;
+	class source_skeletizer;
 	class speech_planner;
 	class source_man;
 
@@ -24,6 +25,9 @@ namespace rosen {
 
 			source_snipper* m_snipper;
 			bool m_snipperOpen;
+
+			source_skeletizer* m_skeletizer;
+			bool m_skeletizerOpen;
 
 			speech_planner* m_planner;
 			bool m_plannerOpen;

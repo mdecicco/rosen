@@ -1,6 +1,7 @@
 #include <managers/ui_man.h>
 #include <ui/snipper.h>
 #include <ui/speech_planner.h>
+#include <ui/skeletizer.h>
 
 #include <r2/engine.h>
 
@@ -14,6 +15,9 @@ namespace rosen {
 		m_snipper = new source_snipper(m_sourceMgr, m_scene);
 		m_snipperOpen = false;
 
+		m_skeletizer = new source_skeletizer(m_sourceMgr, m_scene);
+		m_skeletizerOpen = false;
+
 		m_planner = new speech_planner(m_sourceMgr, m_scene);
 		m_plannerOpen = false;
 	}
@@ -23,6 +27,7 @@ namespace rosen {
 
 	void ui_man::update(f32 frameDt, f32 updateDt) {
 		m_snipper->update(frameDt, updateDt);
+		m_skeletizer->update(frameDt, updateDt);
 		m_planner->update(frameDt, updateDt);
 	}
 
@@ -47,6 +52,7 @@ namespace rosen {
 		ImGui::BeginMenuBar();
 			if (ImGui::BeginMenu("Windows")) {
 				ImGui::MenuItem("Snipper", NULL, &m_snipperOpen);
+				ImGui::MenuItem("Skeletizer", NULL, &m_skeletizerOpen);
 				ImGui::MenuItem("Speech Planner", NULL, &m_plannerOpen);
 				ImGui::EndMenu();
 			}
@@ -56,6 +62,7 @@ namespace rosen {
 		ImGui::PopStyleVar(3);
 
 		m_snipper->render(&m_snipperOpen);
+		m_skeletizer->render(&m_skeletizerOpen);
 		m_planner->render(&m_plannerOpen);
 	}
 };

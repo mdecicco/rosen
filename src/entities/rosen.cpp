@@ -4,7 +4,7 @@ using namespace r2;
 #include <systems/speech.h>
 #include <managers/source_man.h>
 
-#define TEST_POS_DIMENSION_MAX 5.0f
+#define TEST_POS_DIMENSION_MAX 25.0f
 
 namespace rosen {
 	f32 random(f32 min, f32 max) {
@@ -16,7 +16,7 @@ namespace rosen {
 		return random(-range, range);
 	}
 
-	rosen_entity::rosen_entity(const mstring& name, render_node* _node) : scene_entity(name), pos(vec3f(random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX)), 5.0f, r2::interpolate::easeInOutCubic) {
+	rosen_entity::rosen_entity(const mstring& name, render_node* _node) : scene_entity(name), pos(vec3f(random(TEST_POS_DIMENSION_MAX), 0.0f, random(TEST_POS_DIMENSION_MAX)), random(5.0f, 15.0f), r2::interpolate::easeInOutCubic) {
 		texture = nullptr;
 		node = _node;
 		shirt_color_hsv = vec3f(random(0.0f, 1.0f), random(0.0f, 1.0f), random(1.0f, 5.0f));
@@ -36,7 +36,7 @@ namespace rosen {
 
 		speech()->texture = texture;
 		speech()->audio->setPosition(pos);
-		speech()->audio->setRolloffFactor(5.0f);
+		speech()->audio->setRolloffFactor(1.0f);
 
 		transform->transform = glm::translate(mat4f(1.0f), (vec3f)pos);
 		mesh->set_instance_data(transform->transform);
@@ -49,18 +49,20 @@ namespace rosen {
 
 	void rosen_entity::onUpdate(f32 frameDt, f32 updateDt) {
 		if (pos.stopped()) {
-			pos = vec3f(random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX), random(TEST_POS_DIMENSION_MAX));
+			pos = vec3f(random(TEST_POS_DIMENSION_MAX), 0.0f, random(TEST_POS_DIMENSION_MAX));
 		}
 
 		transform->transform = glm::translate(mat4f(1.0f), (vec3f)pos);
 		speech()->audio->setPosition(pos);
 		mesh->set_instance_data(transform->transform);
+
+		if (!speech()->audio->isPlaying()) speak_nonsense(5);
 	}
 
 	void rosen_entity::onEvent(event* evt) {
 		if (evt->name() == "SPEECH_FINISHED") {
 			speak_nonsense(rand() % 30);
-			speech()->audio->setPitch(random(0.5f, 1.5f));
+			speech()->audio->setPitch(0.5f + (((pos.duration() - 5.0f) / 15.0f) * 2.0f));
 		}
 	}
 

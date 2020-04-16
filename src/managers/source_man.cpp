@@ -41,6 +41,72 @@ namespace rosen {
 
 
 
+	void source_content::bone::set(r2::f32 time, r2::vec2f pos) {
+		if (pos.x < 0.0f) pos.x = 0.0f;
+		else if (pos.x > 1.0f) pos.x = 1.0f;
+		if (pos.y < 0.0f) pos.y = 0.0f;
+		else if (pos.y > 1.0f) pos.y = 1.0f;
+		f32 epsilon = 0.0001f;
+		u32 idx = 0;
+		for (auto& it = frames.begin();it != frames.end();it++) {
+			if (it->time >= time - epsilon && it->time <= time + epsilon) {
+				it->time = time;
+				it->position = pos;
+				it->hidden = hidden(time);
+				return;
+			}
+			if (it->time > time + epsilon) {
+				frames.insert(it--, { time, pos, hidden(time) });
+				return;
+			}
+			idx++;
+		}
+		frames.push_back({ time, pos, hidden(time) });
+	}
+
+	void source_content::bone::set(r2::f32 time, bool hidden) {
+		f32 epsilon = 0.0001f;
+		u32 idx = 0;
+		for (auto& it = frames.begin();it != frames.end();it++) {
+			if (it->time >= time - epsilon && it->time <= time + epsilon) {
+				it->time = time;
+				it->position = position(time);
+				it->hidden = hidden;
+				return;
+			}
+			if (it->time > time + epsilon) {
+				frames.insert(it--, { time, position(time), hidden });
+				return;
+			}
+			idx++;
+		}
+		frames.push_back({ time, position(time), hidden });
+	}
+
+	r2::vec2f source_content::bone::position(r2::f32 time) const {
+		for (auto& it = frames.begin();it != frames.end();it++) {
+			auto next = std::next(it);
+			if (next == frames.end()) return it->position;
+			if (it->time <= time && next->time > time) {
+				f32 fac = (time - it->time) / (next->time - it->time);
+				return it->position + ((next->position - it->position) * fac);
+			}
+		}
+
+		return vec2f(0, 0);
+	}
+
+	bool source_content::bone::hidden(r2::f32 time) const {
+		for (auto& it = frames.begin();it != frames.end();it++) {
+			auto next = std::next(it);
+			if (next == frames.end() || (it->time <= time && next->time > time)) return it->hidden;
+		}
+
+		return true;
+	}
+
+
+
 	source_content::source_content(const mstring& name) {
 		m_video = new video_container(name);
 		m_audio = new audio_container(name);
@@ -48,43 +114,76 @@ namespace rosen {
 
 		if (r2engine::files()->exists("./resources/snip/" + name + ".csv")) {
 			data_container* snips = r2engine::files()->open("./resources/snip/" + name + ".csv", DM_TEXT);
-			if (!snips) return;
-
-			mstring line;
-			while (!snips->at_end(1) && snips->read_line(line)) {
-				if (line.find_first_of(',') == string::npos) {
-					line = "";
-					continue;
-				}
-				mstring cols[3];
-				u8 ccol = 0;
-				for (u8 x = 0;x < line.length();x++) {
-					if (line[x] == ',') {
-						ccol++;
-					} else if (line[x] == '\n' || line[x] == '\r') break;
-					else {
-						cols[ccol] += ccol == 0 ? tolower(line[x]) : line[x];
+			if (snips) {
+				mstring line;
+				while (!snips->at_end(1) && snips->read_line(line)) {
+					if (line.find_first_of(',') == string::npos) {
+						line = "";
+						continue;
 					}
+					mstring cols[3];
+					u8 ccol = 0;
+					for (u8 x = 0;x < line.length();x++) {
+						if (line[x] == ',') {
+							ccol++;
+						} else if (line[x] == '\n' || line[x] == '\r') break;
+						else {
+							cols[ccol] += ccol == 0 ? tolower(line[x]) : line[x];
+						}
+					}
+					line = "";
+
+					trim(cols[0]);
+
+					f32 start = atof(cols[1].c_str());
+					f32 end = atof(cols[2].c_str());
+
+					if (end >= m_audio->buffer()->duration()) {
+						end = m_audio->buffer()->duration() - 0.1f;
+					}
+
+					snippets.push_back({
+						start,
+						end,
+						cols[0]
+					});
 				}
 
-				trim(cols[0]);
-
-				f32 start = atof(cols[1].c_str());
-				f32 end = atof(cols[2].c_str());
-
-				if (end >= m_audio->buffer()->duration()) {
-					end = m_audio->buffer()->duration() - 0.1f;
-				}
-
-				snippets.push_back({
-					start,
-					end,
-					cols[0]
-				});
-				line = "";
+				r2engine::files()->destroy(snips);
 			}
+		}
 
-			r2engine::files()->destroy(snips);
+		if (r2engine::files()->exists("./resources/skel/" + name + ".csv")) {
+			data_container* skel = r2engine::files()->open("./resources/skel/" + name + ".csv", DM_TEXT);
+			if (skel) {
+				mstring line;
+				while (!skel->at_end(1) && skel->read_line(line)) {
+					if (line.find_first_of(',') == string::npos) {
+						line = "";
+						continue;
+					}
+					mstring cols[5];
+					u8 ccol = 0;
+					for (u8 x = 0;x < line.length();x++) {
+						if (line[x] == ',') {
+							ccol++;
+						} else if (line[x] == '\n' || line[x] == '\r') break;
+						else cols[ccol] += line[x];
+					}
+					line = "";
+
+					for (u8 c = 0;c < 5;c++) trim(cols[c]);
+
+					u32 bone = atoi(cols[0].c_str());
+					f32 time = atof(cols[1].c_str());
+					f32 px = atof(cols[2].c_str());
+					f32 py = atof(cols[3].c_str());
+					bool hidden = cols[4] == "1";
+
+					bones[bone].frames.push_back({ time, vec2f(px, py), hidden });
+				}
+				r2engine::files()->destroy(skel);
+			}
 		}
 	}
 
@@ -96,6 +195,8 @@ namespace rosen {
 	audio_buffer* source_content::audio() const {
 		return m_audio->buffer();
 	}
+
+	video_container* source_content::video() const { return m_video; }
 
 	texture_buffer* source_content::frame(u32 frameId, texture_buffer* tex) const {
 		return m_video->frame(frameId, tex);
@@ -125,6 +226,22 @@ namespace rosen {
 		}
 
 		r2engine::files()->save(csv, "./resources/snip/" + m_name + ".csv");
+		r2engine::files()->destroy(csv);
+	}
+
+	void source_content::save_bones() {
+		data_container* csv = r2engine::files()->create(DM_TEXT);
+
+		char linebuf[512] = { 0 };
+		for (u32 i = 0;i < bi_bone_count;i++) {
+			for (auto k = bones[i].frames.begin();k != bones[i].frames.end();k++) {
+				snprintf(linebuf, 512, "%d,%f,%f,%f,%d\n", i, k->time, k->position.x, k->position.y, k->hidden ? 1 : 0);
+				csv->write_string(linebuf);
+				memset(linebuf, 0, 512);
+			}
+		}
+
+		r2engine::files()->save(csv, "./resources/skel/" + m_name + ".csv");
 		r2engine::files()->destroy(csv);
 	}
 

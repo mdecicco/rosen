@@ -96,11 +96,13 @@ namespace rosen {
 		r2engine::audio()->setListener(mat4f(1.0f));
 		m_camera = new fly_camera_entity();
 
-		for (u32 i = 0;i < 55;i++) {
+		/*
+		for (u32 i = 0;i < 200;i++) {
 			char a[4] = { 0 };
 			snprintf(a, 4, "%d", i);
 			m_rosens.push_back(new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_rosenShader)));
 		}
+		*/
 	}
 
 	void main_state::becameActive() {
@@ -164,6 +166,8 @@ namespace rosen {
 		char title[128] = { 0 };
 		snprintf(title, 128, "Rosen | %6.2f FPS | %8s / %8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
 		glfwSetWindowTitle(window, title);
+
+		ImGui::InputFloat("lod ratio", &speech_system::get()->dist_lod_skip_mult, 0.001f, 0.01f, 3);
 	}
 
 	void main_state::onEvent(event* evt) {

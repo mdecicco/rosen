@@ -9,6 +9,8 @@ namespace rosen {
 		execution = nullptr;
 		texture = nullptr;
 		audio = new audio_source(NO_AUDIO_BUFFER);
+		lod_skip_interval = 0.0f;
+		lod_skip_time = 0.0f;
 	}
 
 	speech_component::~speech_component() {
@@ -44,6 +46,7 @@ namespace rosen {
 		initialize_periodic_update();
 		setUpdateFrequency(25);
 		start_periodic_updates();
+		dist_lod_skip_mult = 0.01f;
 	}
 
 	void speech_system::deinitialize() {
@@ -128,12 +131,37 @@ namespace rosen {
 
 
 	void speech_system::doUpdate(r2::f32 frameDelta, r2::f32 updateDelta) {
+		scene* cur_scene = r2engine::current_scene();
+		camera_frustum* frustum = nullptr;
+		vec3f cam_pos;
+		if (cur_scene && cur_scene->camera) {
+			frustum = &cur_scene->camera->camera->frustum;
+			cam_pos = glm::inverse(cur_scene->camera->transform->transform) * vec4f(0, 0, 0, 1.0f);
+		}
+
 		auto& state = this->state();
 		state.enable();
-		state->for_each<speech_component>([](speech_component* comp) {
+		state->for_each<speech_component>([this, frustum, updateDelta, cam_pos](speech_component* comp) {
+			bool in_frame = true;
+			if (comp->entity()->transform && frustum) {
+				vec3f pos = comp->entity()->transform->transform * vec4f(0, 0, 0, 1.0f);
+				f32 dist = glm::length(cam_pos - pos);
+				comp->lod_skip_interval = dist > 2.0f ? pow(dist - 2.0f, 2.0f) * 0.01f : 0.0f;
+				in_frame = frustum->contains(pos, 1.0f);
+			} else comp->lod_skip_interval = 0.0f;
+
 			if (comp->execution) {
 				if (!comp->audio->isPlaying()) comp->audio->play();
-				comp->execution->update(comp->audio, comp->texture);
+
+				bool do_update_tex = comp->lod_skip_interval == 0.0f;
+				comp->lod_skip_time -= updateDelta;
+				if (comp->lod_skip_time <= 0.0f) {
+					comp->lod_skip_time = comp->lod_skip_interval;
+					do_update_tex = true;
+				}
+				
+				comp->execution->update(comp->audio, in_frame && do_update_tex ? comp->texture : nullptr);
+				
 				if (comp->execution->completed) {
 					delete comp->execution; comp->execution = nullptr;
 					delete comp->plan; comp->plan = nullptr;
@@ -141,7 +169,8 @@ namespace rosen {
 					event e = evt("SPEECH_FINISHED");
 					comp->entity()->dispatch(&e);
 				}
-				comp->entity()->mesh->get_node()->material_instance()->set_texture("tex", comp->texture);
+
+				if (in_frame) comp->entity()->mesh->get_node()->material_instance()->set_texture("tex", comp->texture);
 			}
 			return true;
 		});
