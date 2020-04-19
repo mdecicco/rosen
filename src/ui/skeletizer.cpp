@@ -71,7 +71,7 @@ namespace rosen {
 
 		bool prevValue = *isOpen;
 		if (ImGui::Begin("Skeletizer", isOpen)) {
-			ImGui::BeginChild("##sk_top", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 450.0f));
+			ImGui::BeginChild("##sk_top", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 250.0f));
 			{
 				ImGui::Columns(2);
 				f32 width = ImGui::GetColumnWidth();
@@ -109,6 +109,16 @@ namespace rosen {
 				ImVec2 windowTL = ImGui::GetWindowPos();
 				ImGui::Image((void*)textureId(m_texture), imgSize);
 
+				ImVec2 mp = ImGui::GetMousePos();
+				f32 mw = ImGui::GetIO().MouseWheel;
+				if (ImGui::IsWindowHovered() && mw != 0.0f) {
+					m_playPos += mw * (1.0f / f32(m_source->video()->info.framerate));
+					if (m_playPos < 0.0f) m_playPos = 0.0f;
+					if (m_playPos > m_audio->duration()) m_playPos = m_audio->duration();
+					m_audio->setPlayPosition(m_playPos);
+					if (!m_audio->isPlaying()) m_source->frame(m_playPos, m_texture);
+				}
+
 				f32 frameDur = 1.0f / f32(m_source->video()->info.framerate);
 				u32 frameIdx = floor(m_playPos / frameDur);
 				f32 frameTime = f32(frameIdx) * frameDur;
@@ -128,7 +138,6 @@ namespace rosen {
 					}
 
 					if (!foundActive) {
-						ImVec2 mp = ImGui::GetMousePos();
 						vec2f cursor = *(vec2f*)&mp;
 						vec2f bone = *(vec2f*)&c;
 
@@ -184,7 +193,7 @@ namespace rosen {
 			}
 			ImGui::EndChild();
 
-			ImGui::BeginChild("##sk_bot", ImVec2(ImGui::GetWindowContentRegionWidth(), 400.0f), true);
+			ImGui::BeginChild("##sk_bot", ImVec2(ImGui::GetWindowContentRegionWidth(), 200.0f), true);
 			{
 				auto dl = ImGui::GetWindowDrawList();
 				ImVec2 windowTL = ImGui::GetWindowPos();
@@ -207,7 +216,7 @@ namespace rosen {
 					f32 voff = 2.0f + (2.0f * b) + (5.0f * b);
 					
 					for (auto it = m_source->bones[b].frames.begin();it != m_source->bones[b].frames.end();it++) {
-						dl->AddCircle(ImVec2(cp.x + ttopx(it->time) + 2.5f, cp.y + voff + 2.5f), 2.5f, ImColor(0.5f, 0.5f, 0.5f));
+						dl->AddCircle(ImVec2(cp.x + ttopx(it->time) + 2.5f, cp.y + voff + 2.5f), 2.5f, ImColor(0.5f, 0.5f, 0.5f), 3);
 					}
 				}
 			}
