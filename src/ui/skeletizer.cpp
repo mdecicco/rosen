@@ -133,6 +133,7 @@ namespace rosen {
 					dl->AddText(ImVec2(c.x + 15.0f, c.y), ImColor(1.0f, 1.0f, 1.0f, 0.75f), bone_names[b]);
 
 					if (ImGui::IsMouseReleased(0)) {
+						if (m_source->bones[b].dragging) m_source->save_bones();
 						m_source->bones[b].dragging = false;
 						foundActive = true;
 					}
@@ -160,7 +161,6 @@ namespace rosen {
 									(mp.x - windowTL.x) / imgSize.x,
 									(mp.y - windowTL.y) / imgSize.y
 								));
-								m_source->save_bones();
 							}
 							foundActive = true;
 						}

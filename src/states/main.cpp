@@ -1,12 +1,15 @@
 #include <states/main.h>
 #include <managers/source_man.h>
 #include <managers/ui_man.h>
+#include <managers/space_man.h>
 #include <entities/rosen.h>
 #include <systems/speech.h>
+#include <utils/physics_drawer.h>
 
 #include <r2/managers/drivers/gl/driver.h>
 #include <r2/engine.h>
 #include <r2/utilities/fly_camera.h>
+#include <r2/utilities/debug_drawer.h>
 
 namespace rosen {
 	render_node* gen_rosen_node(scene* s, shader_program* shader) {
@@ -28,10 +31,10 @@ namespace rosen {
 		struct vertex { vec3f pos; vec2f tex; };
 		f32 width = 1.80555556f;
 		f32 height = 1.0f;
-		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f, 1.0f, 0.0f), vec2f(0, 0) });
-		mesh->append_vertex<vertex>({ vec3f( width * 0.5f, 1.0f, 0.0f), vec2f(1, 0) });
-		mesh->append_vertex<vertex>({ vec3f( width * 0.5f, 0.0f, 0.0f), vec2f(1, 1) });
-		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f, 0.0f, 0.0f), vec2f(0, 1) });
+		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f,  0.5f, 0.0f), vec2f(0, 0) });
+		mesh->append_vertex<vertex>({ vec3f( width * 0.5f,  0.5f, 0.0f), vec2f(1, 0) });
+		mesh->append_vertex<vertex>({ vec3f( width * 0.5f, -0.5f, 0.0f), vec2f(1, 1) });
+		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f, -0.5f, 0.0f), vec2f(0, 1) });
 
 		mesh->append_index<u8>(0);
 		mesh->append_index<u8>(1);
@@ -53,7 +56,7 @@ namespace rosen {
 	
 
 
-	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(40)) {
+	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(60)) {
 		// This state's memory has not been allocated yet. Any
 		// allocations made here will be either in the global
 		// scope, or the scope of the currently active state.
@@ -64,8 +67,8 @@ namespace rosen {
 		// memory_man::pop_current()
 
 		m_sources = sourceMgr;
+		m_spaces = nullptr;
 		m_camera = nullptr;
-		m_rosenShader = nullptr;
 		m_ui = nullptr;
 	}
 
@@ -91,18 +94,27 @@ namespace rosen {
 		// deactivated immediately after this function returns.
 		// This state will be activated immediately after that
 
+		m_spaces = new space_man(getScene());
 		m_ui = new ui_man(m_sources, getScene());
-		m_rosenShader = getScene()->load_shader("./resources/shader/rosen.glsl", "rosen_shader");
+		m_debugShader = getScene()->load_shader("./resources/shader/debug.glsl", "debug_shader");
+		m_debugDraw = new debug_drawer(getScene(), m_debugShader, 131072 * 2, 8192 * 3);
+		m_physicsDraw = new physics_drawer(m_debugDraw);
+
+		auto& ps = physics_sys::get()->physState();
+		ps.enable();
+		//ps->world->setDebugDrawer(m_physicsDraw);
+		ps.disable();
+
 		r2engine::audio()->setListener(mat4f(1.0f));
 		m_camera = new fly_camera_entity();
 
-		/*
-		for (u32 i = 0;i < 200;i++) {
+		for (u32 i = 0;i < 15;i++) {
 			char a[4] = { 0 };
 			snprintf(a, 4, "%d", i);
-			m_rosens.push_back(new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_rosenShader)));
+			rosen_entity* rosen = new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_spaces->get_rosen_shader()));
+			rosen->controlled = i == 0;
+			m_rosens.push_back(rosen);
 		}
-		*/
 	}
 
 	void main_state::becameActive() {
@@ -119,12 +131,12 @@ namespace rosen {
 		// memory, but you should...
 
 		if (m_ui) delete m_ui; m_ui = nullptr;
+		if (m_spaces) delete m_spaces; m_spaces = nullptr;
 
 		for (u32 i = 0;i < m_rosens.size();i++) m_rosens[i]->destroy();
 		m_rosens.clear();
 
 		m_camera->destroy(); m_camera = nullptr;
-		getScene()->destroy(m_rosenShader); m_rosenShader = nullptr;
 	}
 
 	void main_state::becameInactive() {
@@ -156,10 +168,12 @@ namespace rosen {
 
 		//printf("TestState::onUpdate(%.2f ms, %.2f ms)\n", frameDt * 1000.0f, updateDt * 1000.0f);
 		m_ui->update(frameDt, updateDt);
+		m_spaces->get_current()->update(updateDt);
 	}
 
 	void main_state::onRender() {
-		r2engine::audio()->setListener(glm::inverse(m_camera->transform->transform));
+		scene_entity* camera = getScene()->camera;
+		if (camera) r2engine::audio()->setListener(glm::inverse(camera->transform->transform));
 		m_ui->render();
 
 		GLFWwindow* window = *r2engine::get()->window();
@@ -167,7 +181,44 @@ namespace rosen {
 		snprintf(title, 128, "Rosen | %6.2f FPS | %8s / %8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
 		glfwSetWindowTitle(window, title);
 
-		ImGui::InputFloat("lod ratio", &speech_system::get()->dist_lod_skip_mult, 0.001f, 0.01f, 3);
+		//ImGui::InputFloat("lod ratio", &speech_system::get()->dist_lod_skip_mult, 0.001f, 0.01f, 3);
+		static char msg[1024] = { 0 };
+		ImGui::InputText("##say", msg, 1024);
+		ImGui::SameLine(0.0f, 5.0f);
+		if (ImGui::Button("Say")) {
+			for (u32 i = 0;i < m_rosens.size();i++) m_rosens[i]->speak(msg);
+		}
+		if (ImGui::Button("Toggle Space Cam")) {
+			if (m_camera->camera->is_active()) m_spaces->get_current()->set_current_camera(0, false);
+			else camera_sys::get()->activate_camera(m_camera);
+		}
+
+		for (u8 i = 0;i < m_spaces->get_current()->light_count();i++) {
+			char buf[32] = { 0 };
+			snprintf(buf, 32, "##light%d", i);
+			ImGui::BeginChild(buf, ImVec2(600, 300));
+
+			ImGui::Text("Light %d", i);
+
+			rosen_space::light_def* light = m_spaces->get_current()->light(i);
+			if (ImGui::DragFloat3((mstring("Position") + buf).c_str(), &light->position.x)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat3((mstring("Direction") + buf).c_str(), &light->direction.x)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat3((mstring("Color") + buf).c_str(), &light->color.x)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat((mstring("cosConeInnerAngle") + buf).c_str(), &light->cosConeInnerAngle, 0.01f)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat((mstring("cosConeOuterAngle") + buf).c_str(), &light->cosConeOuterAngle, 0.01f)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat((mstring("constantAtt") + buf).c_str(), &light->constantAtt, 0.01f)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat((mstring("linearAtt") + buf).c_str(), &light->linearAtt, 0.01f)) m_spaces->get_current()->update_uniforms();
+			if (ImGui::DragFloat((mstring("quadraticAtt") + buf).c_str(), &light->quadraticAtt, 0.01f)) m_spaces->get_current()->update_uniforms();
+
+			ImGui::EndChild();
+		}
+
+		m_debugDraw->begin();
+		auto& ps = physics_sys::get()->physState();
+		ps.enable();
+		ps->world->debugDrawWorld();
+		ps.disable();
+		m_debugDraw->end();
 	}
 
 	void main_state::onEvent(event* evt) {

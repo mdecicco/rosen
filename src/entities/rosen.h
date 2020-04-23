@@ -8,6 +8,7 @@ namespace r2 {
 
 namespace rosen {
 	class speech_component;
+	class control_component;
 
 	class rosen_entity : public r2::scene_entity {
 		public:
@@ -27,14 +28,16 @@ namespace rosen {
 
 			speech_component* speech();
 
+			control_component* control();
+
 			void speak(const r2::mstring& text);
 
 			void speak_nonsense(u32 word_count);
 
 
+			bool controlled;
 			r2::texture_buffer* texture;
 			r2::render_node* node;
-			r2::interpolator<r2::vec3f> pos;
 			r2::vec3f shirt_color_hsv;
 	};
 };

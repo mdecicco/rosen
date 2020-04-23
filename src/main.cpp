@@ -5,11 +5,13 @@
 #include <managers/source_man.h>
 
 #include <systems/speech.h>
+#include <systems/control.h>
 
 using namespace r2;
 
 int main(int argc, char** argv) {
 	r2engine::register_system(rosen::speech_system::create());
+	r2engine::register_system(rosen::control_system::create());
 	r2engine::create(argc, argv);
 	auto eng = r2engine::get();
 

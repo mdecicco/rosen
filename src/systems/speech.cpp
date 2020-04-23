@@ -146,7 +146,7 @@ namespace rosen {
 			if (comp->entity()->transform && frustum) {
 				vec3f pos = comp->entity()->transform->transform * vec4f(0, 0, 0, 1.0f);
 				f32 dist = glm::length(cam_pos - pos);
-				comp->lod_skip_interval = dist > 2.0f ? pow(dist - 2.0f, 2.0f) * 0.01f : 0.0f;
+				comp->lod_skip_interval = dist > 5.0f ? pow(dist - 5.0f, 2.0f) * 0.005f : 0.0f;
 				in_frame = frustum->contains(pos, 1.0f);
 			} else comp->lod_skip_interval = 0.0f;
 

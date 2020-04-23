@@ -76,7 +76,10 @@ SET(debug_libs
 	debug/BulletCollision_Debug
 	debug/BulletDynamics_Debug
 	debug/LinearMath_Debug
+	debug/assimp-vc142-mtd
 	debug/zlibstaticd
+	debug/zlibd
+	debug/IrrXMLd
 	OpenAL32
 	opengl32
 )
@@ -96,7 +99,10 @@ SET(release_libs
 	release/BulletCollision
 	release/BulletDynamics
 	release/LinearMath
+	release/assimp-vc142-mt
 	release/zlibstatic
+	release/zlib
+	release/IrrXML
 	OpenAL32
 	opengl32
 )
