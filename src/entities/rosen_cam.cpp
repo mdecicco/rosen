@@ -16,6 +16,7 @@ namespace rosen {
 	void rosen_camera_entity::onInitialize() {
 		transform_sys::get()->addComponentTo(this);
 		camera_sys::get()->addComponentTo(this);
+		setUpdateFrequency(60.0f);
 	}
 
 	void rosen_camera_entity::onUpdate(f32 frameDt, f32 updateDt) {

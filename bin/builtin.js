@@ -427,12 +427,12 @@ class mat4 {
     
     rotated(axis, angle) { const out = __c(this); _glMatrix._mat4.rotate(out.__arr, this.__arr, angle * DEG_TO_RAD, axis.__arr); return out; }
     rotate(axis, angle) { _glMatrix._mat4.rotate(this.__arr, this.__arr, angle * DEG_TO_RAD, axis.__arr); return this; }
-    rotatedX(axis, angle) { const out = __c(this); _glMatrix._mat4.rotateX(out.__arr, this.__arr, angle * DEG_TO_RAD); return out; }
-    rotateX(axis, angle) { _glMatrix._mat4.rotateX(this.__arr, this.__arr, angle * DEG_TO_RAD); return this; }
-    rotatedY(axis, angle) { const out = __c(this); _glMatrix._mat4.rotateY(out.__arr, this.__arr, angle * DEG_TO_RAD); return out; }
-    rotateY(axis, angle) { _glMatrix._mat4.rotateY(this.__arr, this.__arr, angle * DEG_TO_RAD); return this; }
-    rotatedZ(axis, angle) { const out = __c(this); _glMatrix._mat4.rotateZ(out.__arr, this.__arr, angle * DEG_TO_RAD); return out; }
-    rotateZ(axis, angle) { _glMatrix._mat4.rotateZ(this.__arr, this.__arr, angle * DEG_TO_RAD); return this; }
+    rotatedX(angle) { const out = __c(this); _glMatrix._mat4.rotateX(out.__arr, this.__arr, angle * DEG_TO_RAD); return out; }
+    rotateX(angle) { _glMatrix._mat4.rotateX(this.__arr, this.__arr, angle * DEG_TO_RAD); return this; }
+    rotatedY(angle) { const out = __c(this); _glMatrix._mat4.rotateY(out.__arr, this.__arr, angle * DEG_TO_RAD); return out; }
+    rotateY(angle) { _glMatrix._mat4.rotateY(this.__arr, this.__arr, angle * DEG_TO_RAD); return this; }
+    rotatedZ(angle) { const out = __c(this); _glMatrix._mat4.rotateZ(out.__arr, this.__arr, angle * DEG_TO_RAD); return out; }
+    rotateZ(angle) { _glMatrix._mat4.rotateZ(this.__arr, this.__arr, angle * DEG_TO_RAD); return this; }
     scaled(s) { const out = __c(this); _glMatrix._mat4.scale(out.__arr, this.__arr, s.__arr); return out; }
     scale(s) { _glMatrix._mat4.scale(this.__arr, this.__arr, s.__arr); return this; }
     translated(t) { const out = __c(this); _glMatrix._mat4.translate(out.__arr, this.__arr, t.__arr); return out; }

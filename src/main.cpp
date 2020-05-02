@@ -2,6 +2,9 @@
 #include <r2/managers/drivers/gl/driver.h>
 
 #include <states/main.h>
+#include <states/initial_loading.h>
+#include <states/editor.h>
+
 #include <managers/source_man.h>
 
 #include <systems/speech.h>
@@ -21,8 +24,10 @@ int main(int argc, char** argv) {
 	rosen::source_man* sourceMgr = new rosen::source_man();
 	rosen::speech_system::get()->sources = sourceMgr;
 
+	eng->states()->register_state(new rosen::initial_loading_state(sourceMgr));
+	eng->states()->register_state(new rosen::editor_state(sourceMgr));
 	eng->states()->register_state(new rosen::main_state(sourceMgr));
-	eng->states()->activate("main_state");
+	eng->states()->activate("initial_loading_state");
 
 	int ret = eng->run();
 

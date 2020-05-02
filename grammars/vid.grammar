@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ufwb version="1.17">
-    <grammar name="VID grammar" start="id:6" author="Computer" fileextension="vid">
+    <grammar name="VID grammar" start="id:7" author="Computer" fileextension="vid">
         <description>Grammar for VID files</description>
-        <structure name="VID file" id="6" encoding="ISO_8859-1:1987" endian="little" signed="no">
-            <number name="width" id="10" type="integer" length="2"/>
-            <number name="height" id="11" type="integer" length="2"/>
-            <number name="frame_rate" id="13" type="integer" length="2"/>
-            <number name="frame_count" id="12" type="integer" length="4"/>
-            <structure name="frame" id="14" repeat="id:12" repeatmin="frame_count" repeatmax="frame_count" valueexpression="size">
-                <number name="size" id="16" type="integer" length="4"/>
-                <structure name="data" id="17" length="size"/>
+        <structure name="VID file" id="7" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="width" id="8" type="integer" length="2"/>
+            <number name="height" id="9" type="integer" length="2"/>
+            <number name="frame_rate" id="10" type="integer" length="2"/>
+            <number name="frame_count" id="11" type="integer" length="4"/>
+            <structure name="frame" id="12" repeat="id:11" repeatmin="frame_count" repeatmax="frame_count" valueexpression="size">
+                <number name="block_size" id="18" type="integer" length="4"/>
+                <number name="block_count" id="19" type="integer" length="2"/>
+                <structure name="block" id="20" repeat="id:19" repeatmin="block_count" repeatmax="block_count" valueexpression="size">
+                    <number name="size" id="22" type="integer" length="4"/>
+                    <structure name="data" id="23" length="size"/>
+                </structure>
             </structure>
         </structure>
     </grammar>

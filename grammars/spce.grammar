@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ufwb version="1.17">
+    <grammar name="SPCE grammar" start="id:6" author="Computer" fileextension="spce">
+        <description>Grammar for SPCE files</description>
+        <structure name="SPCE file" id="6" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <string name="magic" mustmatch="yes" id="8" type="fixed-length" length="4">
+                <fixedvalues>
+                    <fixedvalue name="magic" value="SPCE"/>
+                </fixedvalues>
+            </string>
+            <number name="mesh_count" id="9" type="integer" length="2"/>
+            <structure name="mesh" id="10" repeat="id:9" repeatmin="mesh_count" repeatmax="mesh_count" valueexpression="instance_count">
+                <structure name="material" id="28">
+                    <structref name="diffuse" id="27" structure="id:21"/>
+                    <number name="texture_len" id="30" type="integer" length="1"/>
+                    <string name="texture" id="31" type="fixed-length" length="texture_len"/>
+                </structure>
+                <structure name="vertices" id="33" valueexpression="count">
+                    <number name="count" id="32" type="integer" length="4"/>
+                    <structure name="vertex" id="35" repeat="id:32" repeatmin="count" repeatmax="count">
+                        <structref name="position" id="40" structure="id:12"/>
+                        <structref name="normal" id="38" structure="id:12"/>
+                        <structref name="texcoord" id="39" structure="id:17"/>
+                    </structure>
+                </structure>
+                <structure name="indices" id="41">
+                    <number name="count" id="43" type="integer" length="4"/>
+                    <structure name="index" id="45" repeat="id:43" repeatmin="count" repeatmax="count" valueexpression="index">
+                        <number name="index" id="44" type="integer" length="2"/>
+                    </structure>
+                </structure>
+                <number name="instance_count" id="47" type="integer" length="2"/>
+            </structure>
+            <number name="collider_count" id="48" type="integer" length="2"/>
+            <structure name="collider" id="49" repeat="id:48" repeatmin="collider_count" repeatmax="collider_count">
+                <structure name="vertices" id="54" repeat="id:51">
+                    <number name="count" id="51" type="integer" length="4"/>
+                    <structref name="vertex" id="53" repeatmin="0" repeatmax="0" structure="id:12"/>
+                </structure>
+                <structure name="indices" id="56">
+                    <number name="count" id="52" type="integer" length="4"/>
+                    <structure name="index" id="58" repeat="id:52" repeatmin="count" repeatmax="count" valueexpression="index">
+                        <number name="index" id="60" type="integer" length="2"/>
+                    </structure>
+                </structure>
+            </structure>
+            <number name="node_count" id="61" type="integer" length="2"/>
+            <structure name="nodes" id="80" repeatmin="Unlimited" repeatmax="-1" order="variable">
+                <structure name="mesh_node" id="64" repeat="id:61">
+                    <number name="type" mustmatch="yes" id="66" type="integer" length="4">
+                        <fixedvalues>
+                            <fixedvalue name="type" value="0"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="name_len" id="67" type="integer" length="1"/>
+                    <string name="name" id="68" type="fixed-length" length="name_len"/>
+                    <structref name="transform" id="98" structure="id:69"/>
+                    <number name="mesh_idx" id="95" type="integer" length="2"/>
+                </structure>
+                <structure name="light_node" id="77">
+                    <number name="type" mustmatch="yes" id="79" type="integer" length="4" minval="1" maxval="1">
+                        <fixedvalues>
+                            <fixedvalue name="type" value="1"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="name_len" id="88" type="integer" length="1"/>
+                    <string name="name" id="89" type="fixed-length" length="name_len"/>
+                    <structref name="transform" id="99" structure="id:69"/>
+                    <structure name="light" id="102">
+                        <number name="type" id="105" type="integer" length="2"/>
+                        <structref name="color" id="104" structure="id:12"/>
+                        <number name="coneInnerAngle" id="106" type="float" length="32" lengthunit="bit"/>
+                        <number name="coneOuterAngle" id="107" type="float" length="32" lengthunit="bit"/>
+                        <number name="constantAttenuation" id="108" type="float" length="32" lengthunit="bit"/>
+                        <number name="linearAttenuation" id="109" type="float" length="32" lengthunit="bit"/>
+                        <number name="quadraticAttenuation" id="110" type="integer" length="1"/>
+                    </structure>
+                </structure>
+                <structure name="camera_node" id="82">
+                    <number name="type" mustmatch="yes" id="86" type="integer" length="4" minval="2" maxval="2">
+                        <fixedvalues>
+                            <fixedvalue name="type" value="2"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="name_len" id="90" type="integer" length="1"/>
+                    <string name="name" id="93" type="fixed-length" length="name_len"/>
+                    <structref name="transform" id="100" structure="id:69"/>
+                    <structure name="camera" id="111">
+                        <structref name="position" id="113" structure="id:12"/>
+                        <structref name="target" id="114" structure="id:12"/>
+                        <number name="fieldOfView" id="115" type="float" length="32" lengthunit="bit"/>
+                        <number name="width" id="116" type="float" length="32" lengthunit="bit"/>
+                        <number name="height" id="117" type="float" length="32" lengthunit="bit"/>
+                        <number name="isOrthographic" id="118" type="integer" length="1"/>
+                    </structure>
+                </structure>
+                <structure name="collision_node" id="84">
+                    <number name="type" mustmatch="yes" id="87" type="integer" length="4" minval="3" maxval="3">
+                        <fixedvalues>
+                            <fixedvalue name="type" value="3"/>
+                        </fixedvalues>
+                    </number>
+                    <number name="name_len" id="91" type="integer" length="1"/>
+                    <string name="name" id="94" type="fixed-length" length="name_len"/>
+                    <structref name="transform" id="101" structure="id:69"/>
+                    <number name="collision_mesh_idx" id="119" type="integer" length="2"/>
+                </structure>
+            </structure>
+        </structure>
+        <structure name="vec4f" id="21" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="x" id="23" type="float" length="32" lengthunit="bit"/>
+            <number name="y" id="24" type="float" length="32" lengthunit="bit"/>
+            <number name="z" id="25" type="float" length="32" lengthunit="bit"/>
+            <number name="w" id="26" type="float" length="32" lengthunit="bit"/>
+        </structure>
+        <structure name="vec3f" id="12" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="x" id="14" type="float" length="32" lengthunit="bit"/>
+            <number name="y" id="15" type="float" length="32" lengthunit="bit"/>
+            <number name="z" id="16" type="float" length="32" lengthunit="bit"/>
+        </structure>
+        <structure name="vec2f" id="17" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <number name="x" id="19" type="float" length="32" lengthunit="bit"/>
+            <number name="y" id="20" type="float" length="32" lengthunit="bit"/>
+        </structure>
+        <structure name="mat4f" id="69" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <structref name="x" id="71" structure="id:21"/>
+            <structref name="y" id="72" structure="id:21"/>
+            <structref name="z" id="73" structure="id:21"/>
+            <structref name="w" id="74" structure="id:21"/>
+        </structure>
+    </grammar>
+</ufwb>

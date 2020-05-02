@@ -9,7 +9,7 @@ out vec3 o_shirt_color;
 out vec3 o_pos;
 
 layout (std140) uniform u_scene { mat4 transform; mat4 projection; mat4 view_proj; } scene;
-layout (std140) uniform u_model { mat4 transform; } model;
+layout (std140) uniform u_model { mat4 transform; mat4 normal_transform; } model;
 layout (std140) uniform u_material { vec3 shirt_tint; } material;
 
 vec3 hsv(vec3 c) {
@@ -34,34 +34,21 @@ in vec3 o_shirt_color;
 in vec3 o_pos;
 
 uniform sampler2D tex;
-uniform int light_count;
-uniform struct light {
-    int type;
-    vec3 position;
-    vec3 direction;
-    vec3 color;
-    float cosConeInnerAngle;
-    float cosConeOuterAngle;
-    float constantAtt;
-    float linearAtt;
-    float quadraticAtt;
-} u_lights[8];
+uniform int u_light_count;
+uniform LightSource u_lights[16];
 
 vec3 calc_light(int index) {
     vec3 L = u_lights[index].position - o_pos;
     float dist = length(L);
     L /= dist;
     float attenuation = 1.0 / (u_lights[index].constantAtt + (u_lights[index].linearAtt * dist) + (u_lights[index].quadraticAtt * dist * dist));
-    if (u_lights[index].type == 1) {
-        // directional
-    } else if (u_lights[index].type == 2) {
-        // point
-    } else {
-        // spot
+    if (u_lights[index].type == LIGHT_TYPE_DIRECTIONAL) {
+    } else if (u_lights[index].type == LIGHT_TYPE_POINT) {
+    } else if (u_lights[index].type == LIGHT_TYPE_SPOT) {
         float cos_angle = dot(-L, u_lights[index].direction);
         float inner_minus_outer = u_lights[index].cosConeInnerAngle - u_lights[index].cosConeOuterAngle;
         float spot = clamp((cos_angle - u_lights[index].cosConeOuterAngle) / inner_minus_outer, 0.0, 1.0);
-        return u_lights[index].color * spot * attenuation;
+        return u_lights[index].color * clamp(spot * attenuation, 0.0, 1.0);
     }
 
     return vec3(0.0, 0.0, 0.0);
@@ -116,6 +103,6 @@ vec3 base_color(vec2 texcoord) {
 
 void main() {
     vec3 lighting = vec3(0.0, 0.0, 0.0);
-    for (int i = 0;i < light_count;i++) lighting += calc_light(i);
+    for (int i = 0;i < u_light_count;i++) lighting += calc_light(i);
     frag_color = vec4(base_color(o_tex) * lighting, 1.0);
 }

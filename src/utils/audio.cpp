@@ -6,7 +6,7 @@ using namespace r2;
 
 namespace rosen {
 	audio_container::audio_container(const mstring& name) {
-		data_container* audio = r2engine::files()->open("./resources/video/" + name + "/audio.aud", DM_BINARY);
+		data_container* audio = r2engine::files()->open("./resources/video/" + name + "/audio.aud", DM_BINARY, name + " (audio)");
 
 		#pragma pack(push, 1)
 		struct header {

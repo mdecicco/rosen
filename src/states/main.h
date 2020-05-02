@@ -8,7 +8,6 @@ namespace r2 {
 
 namespace rosen {
 	class source_man;
-	class rosen_entity;
 	class ui_man;
 	class space_man;
 	class physics_drawer;
@@ -42,11 +41,8 @@ namespace rosen {
 			ui_man* m_ui;
 			physics_drawer* m_physicsDraw;
 
-			r2::mvector<rosen_entity*> m_rosens;
-
 			r2::fly_camera_entity* m_camera;
 			r2::shader_program* m_debugShader;
 			r2::debug_drawer* m_debugDraw;
 	};
-
 };

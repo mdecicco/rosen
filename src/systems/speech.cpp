@@ -11,6 +11,9 @@ namespace rosen {
 		audio = new audio_source(NO_AUDIO_BUFFER);
 		lod_skip_interval = 0.0f;
 		lod_skip_time = 0.0f;
+		lod_falloff_start_dist = 5.0f;
+		volume = 1.0f;
+		pitch = 1.0f;
 	}
 
 	speech_component::~speech_component() {
@@ -46,7 +49,7 @@ namespace rosen {
 		initialize_periodic_update();
 		setUpdateFrequency(25);
 		start_periodic_updates();
-		dist_lod_skip_mult = 0.01f;
+		dist_lod_skip_mult = 0.001f;
 	}
 
 	void speech_system::deinitialize() {
@@ -93,6 +96,7 @@ namespace rosen {
 			entity->bind(this, "speak", [](entity_system* system, scene_entity* entity, v8Args args) {
 				if (args.Length() != 1 || !args[0]->IsString()) {
 					r2Error("Expected speech text to be passed to entity.speak()");
+					args.GetReturnValue().Set(v8pp::convert<f32>::to_v8(args.GetIsolate(), 0.0f));
 					return;
 				}
 
@@ -106,8 +110,57 @@ namespace rosen {
 				if (comp->execution) delete comp->execution;
 				comp->plan = sys->sources->plan_speech(text);
 				comp->execution = new speech_execution_context(comp->plan);
+				comp->execution->update(comp->audio, comp->texture);
+				state.disable();
+
+				args.GetReturnValue().Set(v8pp::convert<f32>::to_v8(args.GetIsolate(), comp->plan->duration));
+			});
+			entity->bind(this, "cancel_speech", [](entity_system* system, scene_entity* entity, v8Args args) {
+				speech_system* sys = (speech_system*)system;
+				auto& state = system->state();
+				state.enable();
+				speech_component* comp = (speech_component*)state->entity(entity->id());
+				if (comp->plan) delete comp->plan;
+				if (comp->execution) delete comp->execution;
+				comp->plan = nullptr;
+				comp->execution = nullptr;
+				comp->audio->stop();
 				state.disable();
 			});
+			entity->bind(this, "grab_frame", [](entity_system* system, scene_entity* entity, v8Args args) {
+				if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsNumber()) {
+					r2Error("Expected source name, frame time to be passed to entity.grab_frame()");
+					return;
+				}
+
+				mstring name = v8pp::convert<mstring>::from_v8(r2engine::isolate(), args[0]);
+				speech_system* sys = (speech_system*)system;
+				source_content* source = sys->sources->source(name);
+				if (source) {
+					f32 time = v8pp::convert<f32>::from_v8(r2engine::isolate(), args[1]);
+
+					auto& state = system->state();
+					state.enable();
+					speech_component* comp = (speech_component*)state->entity(entity->id());
+
+					source->frame(time, comp->texture);
+					comp->entity()->mesh->get_node()->material_instance()->set_texture("tex", comp->texture);
+					state.disable();
+				}
+			});
+			entity->bind(this, "is_speaking", [](entity_system* system, scene_entity* entity, v8Args args) {
+				speech_system* sys = (speech_system*)system;
+				auto& state = system->state();
+				state.enable();
+				speech_component* comp = (speech_component*)state->entity(entity->id());
+				bool speaking = comp->execution != nullptr;
+				state.disable();
+
+				args.GetReturnValue().Set(v8pp::convert<bool>::to_v8(args.GetIsolate(), speaking));
+			});
+			entity->bind_interpolatable(component, "speech", "volume", &c::volume);
+			entity->bind_interpolatable(component, "speech", "pitch", &c::pitch);
+			entity->bind_interpolatable(component, "speech", "lod_falloff_dist", &c::lod_falloff_start_dist);
 		}
 	}
 
@@ -146,9 +199,14 @@ namespace rosen {
 			if (comp->entity()->transform && frustum) {
 				vec3f pos = comp->entity()->transform->transform * vec4f(0, 0, 0, 1.0f);
 				f32 dist = glm::length(cam_pos - pos);
-				comp->lod_skip_interval = dist > 5.0f ? pow(dist - 5.0f, 2.0f) * 0.005f : 0.0f;
+				comp->lod_skip_interval = dist > comp->lod_falloff_start_dist ? pow(dist - comp->lod_falloff_start_dist, 2.0f) * dist_lod_skip_mult : 0.0f;
 				in_frame = frustum->contains(pos, 1.0f);
 			} else comp->lod_skip_interval = 0.0f;
+
+			if (in_frame) {
+				if (comp->volume != comp->audio->gain()) comp->audio->setGain(comp->volume);
+				if (comp->pitch != comp->audio->pitch()) comp->audio->setPitch(comp->pitch);
+			}
 
 			if (comp->execution) {
 				if (!comp->audio->isPlaying()) comp->audio->play();

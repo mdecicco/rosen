@@ -80,6 +80,7 @@ SET(debug_libs
 	debug/zlibstaticd
 	debug/zlibd
 	debug/IrrXMLd
+	debug/marl
 	OpenAL32
 	opengl32
 )
@@ -103,6 +104,7 @@ SET(release_libs
 	release/zlibstatic
 	release/zlib
 	release/IrrXML
+	release/marl
 	OpenAL32
 	opengl32
 )

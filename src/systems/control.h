@@ -1,4 +1,5 @@
 #include <r2/systems/entity.h>
+#include <r2/utilities/interpolator.hpp>
 
 namespace r2 {
 };
@@ -13,6 +14,8 @@ namespace rosen {
 			bool on_ground;
 			r2::f32 movement_speed;
 			r2::f32 jump_impulse;
+			r2::interpolator<r2::mat4f> target_transform;
+			bool moving_to_target;
 	};
 
 	class control_system : public r2::entity_system, r2::periodic_update {

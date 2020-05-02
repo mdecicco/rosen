@@ -1,20 +1,23 @@
 class TestSpace {
 	constructor() {
 		engine.log('construct');
-		this.test = 5;
+		this.time = 0;
+		this.box = null;
 	}
 	
 	initialize () {
-		engine.log('init', this.test);
-		const box = this.get_element('Box001');
-		if (box) engine.log(box.name, box.id);
+		engine.log('init');
+		this.box = this.get_element('Box001');
+		this.box.set_update_frequency(60.0);
 	}
 	
 	deinitialize () {
-		engine.log('deinit', this.test);
+		engine.log('deinit');
 	}
 	
 	update (dt) {
-		engine.log(`update ${dt}`, this.test);
+		this.time += dt;
+		const transform = Transform3D.rotationY(this.time * 10.0);
+		this.box.transform = transform;
 	}
 };

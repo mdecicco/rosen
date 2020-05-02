@@ -1,9 +1,9 @@
 #include <entities/space_element.h>
+#include <glm/gtc/matrix_inverse.hpp>
 using namespace r2;
 
 namespace rosen {
 	space_element_entity::space_element_entity(const mstring& name, render_node* node, const mat4f& transform) : scene_entity(name), m_node(node), m_initialTransform(transform) {
-		node->uniforms()->uniform_mat4f("transform", transform);
 	}
 
 	space_element_entity::~space_element_entity() {
@@ -12,11 +12,22 @@ namespace rosen {
 	void space_element_entity::onInitialize() {
 		transform_sys::get()->addComponentTo(this);
 		transform->transform = m_initialTransform;
-		setUpdateFrequency(1.0f);
+
+		mesh_sys::get()->addComponentTo(this);
+		mesh->set_node(m_node);
+
+		setUpdateFrequency(60.0f);
 	}
 
 	void space_element_entity::onUpdate(f32 frameDt, f32 updateDt) {
-		m_node->uniforms()->uniform_mat4f("transform", transform->transform);
+		mat4f t = transform->transform;
+
+		struct instance_data {
+			mat4f transform;
+			mat3f normal_transform;
+		} instance = { t, glm::inverseTranspose(mat3f(t)) };
+		
+		mesh->set_instance_data<instance_data>(instance);
 	}
 
 	void space_element_entity::onEvent(event* evt) {

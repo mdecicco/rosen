@@ -35,9 +35,11 @@ namespace rosen {
 			void speak_nonsense(u32 word_count);
 
 
-			bool controlled;
+			bool player_controlled;
+			bool use_physics;
 			r2::texture_buffer* texture;
 			r2::render_node* node;
 			r2::vec3f shirt_color_hsv;
+			r2::mat4f initial_transform;
 	};
 };

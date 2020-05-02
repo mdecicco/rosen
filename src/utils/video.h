@@ -19,7 +19,8 @@ namespace rosen {
 			};
 
 			struct frameinfo {
-				r2::u32 size;
+				r2::u32 uncompressed_block_size;
+				r2::u16 block_count;
 				r2::u32 offset;
 			};
 

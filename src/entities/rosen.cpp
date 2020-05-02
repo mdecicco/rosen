@@ -16,10 +16,12 @@ namespace rosen {
 	}
 
 	rosen_entity::rosen_entity(const mstring& name, render_node* _node) : scene_entity(name) {
-		controlled = false;
+		player_controlled = false;
+		use_physics = true;
 		texture = nullptr;
 		node = _node;
 		shirt_color_hsv = vec3f(random(0.0f, 1.0f), random(0.0f, 1.0f), random(1.0f, 5.0f));
+		initial_transform = mat4f(1.0f);
 	}
 
 	rosen_entity::~rosen_entity() {
@@ -30,47 +32,50 @@ namespace rosen {
 		texture->create(1, 1, 3, tt_unsigned_byte);
 		
 		transform_sys::get()->addComponentTo(this);
-		transform->transform = mat4f(1.0f);
+		transform->transform = initial_transform;
 
 		mesh_sys::get()->addComponentTo(this);
 		node->material_instance()->uniforms()->uniform_vec3f("shirt_tint", shirt_color_hsv);
 		mesh->set_node(node);
+
 		mesh->set_instance_data(transform->transform);
 
-		physics_sys::get()->addComponentTo(this);
-		physics->set_mass(1.0f);
-		physics->set_shape(new btSphereShape(0.5f));
-		physics->rigidBody()->setAngularFactor(btVector3(0.0f, 1.0f, 0.0f));
-		physics->rigidBody()->setSpinningFriction(5.0f);
-		physics->rigidBody()->setActivationState(DISABLE_DEACTIVATION);
+		if (use_physics) {
+			physics_sys::get()->addComponentTo(this);
+			physics->set_mass(1.0f);
+			physics->set_shape(new btSphereShape(0.5f));
+			physics->rigidBody()->setAngularFactor(btVector3(0.0f, 0.1f, 0.0f));
+			physics->rigidBody()->setSpinningFriction(5.0f);
+			physics->rigidBody()->setActivationState(DISABLE_DEACTIVATION);
+		}
 
 		speech_system::get()->addComponentTo(this);
 		speech()->texture = texture;
 		speech()->audio->setRolloffFactor(1.0f);
 		speech()->audio->setPitch(1.0f);
+		speech_system* sys = speech_system::get();
+		auto src = sys->sources->source(rand() % sys->sources->source_count());
+		src->frame(random(3.0f, src->duration()), texture);
+
 
 		control_system::get()->addComponentTo(this);
-		control()->control_enabled = controlled;
+		control()->control_enabled = player_controlled;
 		control()->movement_speed = 20.0f;
 		control()->jump_impulse = 5.0f;
 
+		bind("speak_nonsense", [this](i32 word_count) {
+			speak_nonsense(word_count);
+		});
 
 		setUpdateFrequency(60.0f);
-
-		speak_nonsense(5);
 	}
 
 	void rosen_entity::onUpdate(f32 frameDt, f32 updateDt) {
 		speech()->audio->setPosition(transform->transform * vec4f(0.0f, 0.0f, 0.0f, 1.0f));
 		mesh->set_instance_data(transform->transform);
-
-		if (!speech()->audio->isPlaying()) speak_nonsense(5);
 	}
 
 	void rosen_entity::onEvent(event* evt) {
-		if (evt->name() == "SPEECH_FINISHED") {
-			speak_nonsense(rand() % 30);
-		}
 	}
 
 	void rosen_entity::willBeDestroyed() {

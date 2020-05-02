@@ -4,11 +4,12 @@
 using namespace r2;
 
 namespace rosen {
-	control_component::control_component() {
+	control_component::control_component() : target_transform(mat4f(1.0f), 5.0f, interpolate::linear) {
 		movement_speed = 1.0f;
 		jump_impulse = 1.0f;
 		control_enabled = false;
 		on_ground = true;
+		moving_to_target = false;
 	}
 
 	control_component::~control_component() {
@@ -75,8 +76,22 @@ namespace rosen {
 		using c = control_component;
 		if (entity->is_scripted()) {
 			entity->unbind("add_control_component");
-			entity->bind(component, "control_enabled", &control_component::control_enabled);
-			entity->bind(component, "movement_speed", &control_component::movement_speed);
+			entity->bind_interpolatable(component, "control_enabled", &c::control_enabled);
+			entity->bind_interpolatable(component, "movement_speed", &c::movement_speed);
+			entity->bind(component, "moving_to_target", &c::moving_to_target, true);
+			entity->bind(this, "walk_to", [](entity_system* system, scene_entity* entity, v8Args args) {
+				if (args.Length() < 2 || !v8pp::convert<mat4f>::is_valid(args.GetIsolate(), args[0]) || !v8pp::convert<f32>::is_valid(args.GetIsolate(), args[1])) {
+					return;
+				}
+				auto& state = system->state();
+				state.enable();
+				c* comp = (c*)state->entity(entity->id());
+				if (comp->entity()->transform) comp->target_transform.set_immediate(comp->entity()->transform->transform);
+				comp->target_transform.duration(v8pp::convert<f32>::from_v8(args.GetIsolate(), args[1]));
+				comp->target_transform = v8pp::convert<mat4f>::from_v8(args.GetIsolate(), args[0]);
+				comp->moving_to_target = true;
+				state.disable();
+			});
 			entity->bind(this, "remove_control_component", [](entity_system* system, scene_entity* entity, v8Args args) {
 				system->removeComponentFrom(entity);
 			});
@@ -134,9 +149,17 @@ namespace rosen {
 		auto& state = this->state();
 		state.enable();
 		state->for_each<control_component>([this, pworld, updateDelta, cam_pos, xzMovement, jumpPressed](control_component* comp) {
-			if (!comp->control_enabled) return true;
-
 			scene_entity* entity = comp->entity();
+			if (!comp->control_enabled) {
+				if (comp->moving_to_target) {
+					transform_component* tc = entity->transform.get();
+					if (!tc) return true;
+					tc->transform = comp->target_transform;
+					comp->moving_to_target = !comp->target_transform.stopped();
+				}
+				return true;
+			}
+
 			transform_component* tc = entity->transform.get();
 			if (!tc) return true;
 			physics_component* pc = entity->physics.get();
@@ -149,10 +172,10 @@ namespace rosen {
 			forward.y = 0.0f;
 			right.y = 0.0f;
 
-			vec3f trans = forward * xzMovement.y * comp->movement_speed;
-			trans += right * xzMovement.x * comp->movement_speed;
 
-			mat4f t = glm::translate(tc->transform, trans);
+			f32 mult = pc ? 1.0f : updateDelta;
+			vec3f trans = forward * xzMovement.y * comp->movement_speed * mult;
+			trans += right * xzMovement.x * comp->movement_speed * mult;
 
 			if (pc) {
 				if (xzMovement.x != 0.0f || xzMovement.y != 0.0f) {

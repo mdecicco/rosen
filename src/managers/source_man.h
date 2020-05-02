@@ -1,4 +1,7 @@
 #include <r2/managers/memman.h>
+#include <marl/mutex.h>
+#include <marl/event.h>
+
 namespace r2 {
 	class audio_buffer;
 	class audio_source;
@@ -139,9 +142,13 @@ namespace rosen {
 
 			void save_premixes();
 
+			r2::f32 loadingProgress();
+
 			r2::mvector<premixed_word> mixedWords;
 
 		protected:
 			r2::mvector<source_content*> m_sources;
+			marl::mutex m_lock;
+			r2::f32 m_loadingProgress;
 	};
 };

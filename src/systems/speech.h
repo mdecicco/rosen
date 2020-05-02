@@ -21,6 +21,9 @@ namespace rosen {
 			r2::texture_buffer* texture;
 			r2::f32 lod_skip_interval;
 			r2::f32 lod_skip_time;
+			r2::f32 lod_falloff_start_dist;
+			r2::f32 volume;
+			r2::f32 pitch;
 	};
 
 	class speech_system : public r2::entity_system, r2::periodic_update {

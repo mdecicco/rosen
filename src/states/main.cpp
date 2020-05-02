@@ -2,7 +2,6 @@
 #include <managers/source_man.h>
 #include <managers/ui_man.h>
 #include <managers/space_man.h>
-#include <entities/rosen.h>
 #include <systems/speech.h>
 #include <utils/physics_drawer.h>
 
@@ -12,51 +11,7 @@
 #include <r2/utilities/debug_drawer.h>
 
 namespace rosen {
-	render_node* gen_rosen_node(scene* s, shader_program* shader) {
-		vertex_format* vfmt = new vertex_format();
-		vfmt->add_attr(vat_vec3f);
-		vfmt->add_attr(vat_vec2f);
-
-		instance_format* ifmt = new instance_format();
-		ifmt->add_attr(iat_mat4f, true);
-
-		uniform_format* mfmt = new uniform_format();
-		mfmt->add_attr("shirt_tint", uat_vec3f);
-
-		mesh_construction_data* mesh = new mesh_construction_data(vfmt, it_unsigned_byte, ifmt);
-		mesh->set_max_vertex_count(4);
-		mesh->set_max_index_count(6);
-		mesh->set_max_instance_count(1);
-
-		struct vertex { vec3f pos; vec2f tex; };
-		f32 width = 1.80555556f;
-		f32 height = 1.0f;
-		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f,  0.5f, 0.0f), vec2f(0, 0) });
-		mesh->append_vertex<vertex>({ vec3f( width * 0.5f,  0.5f, 0.0f), vec2f(1, 0) });
-		mesh->append_vertex<vertex>({ vec3f( width * 0.5f, -0.5f, 0.0f), vec2f(1, 1) });
-		mesh->append_vertex<vertex>({ vec3f(-width * 0.5f, -0.5f, 0.0f), vec2f(0, 1) });
-
-		mesh->append_index<u8>(0);
-		mesh->append_index<u8>(1);
-		mesh->append_index<u8>(3);
-		mesh->append_index<u8>(1);
-		mesh->append_index<u8>(2);
-		mesh->append_index<u8>(3);
-
-		mesh->append_instance(mat4f(1.0f));
-
-		render_node* node = s->add_mesh(mesh);
-		node_material* mtrl = new node_material("u_material", mfmt);
-		mtrl->set_shader(shader);
-		node->set_material_instance(mtrl->instantiate(s));
-		node->material_instance()->uniforms()->uniform_vec3f("shirt_tint", vec3f(0.3f, 0.5f, 2.0f));
-
-		return node;
-	};
-	
-
-
-	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(60)) {
+	main_state::main_state(source_man* sourceMgr) : state("main_state", MBtoB(256)) {
 		// This state's memory has not been allocated yet. Any
 		// allocations made here will be either in the global
 		// scope, or the scope of the currently active state.
@@ -108,18 +63,15 @@ namespace rosen {
 		r2engine::audio()->setListener(mat4f(1.0f));
 		m_camera = new fly_camera_entity();
 
-		for (u32 i = 0;i < 15;i++) {
-			char a[4] = { 0 };
-			snprintf(a, 4, "%d", i);
-			rosen_entity* rosen = new rosen_entity("Michael_" + mstring(a), gen_rosen_node(getScene(), m_spaces->get_rosen_shader()));
-			rosen->controlled = i == 0;
-			m_rosens.push_back(rosen);
-		}
+		getScene()->clearColor = vec4f(0, 0, 0, 1.0f);
 	}
 
 	void main_state::becameActive() {
 		// The state was activated completely, and the previous
 		// state (if any) has been cleared
+
+		r2engine::get()->initialize_new_entities();
+		m_spaces->get_current()->initialize();
 	}
 
 	void main_state::willBecomeInactive() {
@@ -132,9 +84,6 @@ namespace rosen {
 
 		if (m_ui) delete m_ui; m_ui = nullptr;
 		if (m_spaces) delete m_spaces; m_spaces = nullptr;
-
-		for (u32 i = 0;i < m_rosens.size();i++) m_rosens[i]->destroy();
-		m_rosens.clear();
 
 		m_camera->destroy(); m_camera = nullptr;
 	}
@@ -167,6 +116,7 @@ namespace rosen {
 		// outside of the context of the frame.
 
 		//printf("TestState::onUpdate(%.2f ms, %.2f ms)\n", frameDt * 1000.0f, updateDt * 1000.0f);
+
 		m_ui->update(frameDt, updateDt);
 		m_spaces->get_current()->update(updateDt);
 	}
@@ -182,38 +132,57 @@ namespace rosen {
 		glfwSetWindowTitle(window, title);
 
 		//ImGui::InputFloat("lod ratio", &speech_system::get()->dist_lod_skip_mult, 0.001f, 0.01f, 3);
-		static char msg[1024] = { 0 };
-		ImGui::InputText("##say", msg, 1024);
-		ImGui::SameLine(0.0f, 5.0f);
-		if (ImGui::Button("Say")) {
-			for (u32 i = 0;i < m_rosens.size();i++) m_rosens[i]->speak(msg);
-		}
 		if (ImGui::Button("Toggle Space Cam")) {
 			if (m_camera->camera->is_active()) m_spaces->get_current()->set_current_camera(0, false);
 			else camera_sys::get()->activate_camera(m_camera);
 		}
 
-		for (u8 i = 0;i < m_spaces->get_current()->light_count();i++) {
+		m_debugDraw->begin();
+		//m_debugDraw->line(vec3f(0, 0, 0), vec3f(100, 0, 0), vec4f(1, 0, 0, 1));
+		//m_debugDraw->line(vec3f(0, 0, 0), vec3f(0, 100, 0), vec4f(0, 1, 0, 1));
+		//m_debugDraw->line(vec3f(0, 0, 0), vec3f(0, 0, 100), vec4f(0, 0, 1, 1));
+
+		//m_spaces->get_current()->debug_draw(m_debugDraw);
+
+		lighting_component* lights[16];
+		size_t light_count = lighting_sys::get()->get_lights(16, lights);
+		for (u8 i = 0;i < light_count;i++) {
+			lighting_component* light = lights[i];
 			char buf[32] = { 0 };
 			snprintf(buf, 32, "##light%d", i);
 			ImGui::BeginChild(buf, ImVec2(600, 300));
 
-			ImGui::Text("Light %d", i);
+			ImGui::Text("Light %s", light->entity()->name().c_str());
 
-			rosen_space::light_def* light = m_spaces->get_current()->light(i);
-			if (ImGui::DragFloat3((mstring("Position") + buf).c_str(), &light->position.x)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat3((mstring("Direction") + buf).c_str(), &light->direction.x)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat3((mstring("Color") + buf).c_str(), &light->color.x)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat((mstring("cosConeInnerAngle") + buf).c_str(), &light->cosConeInnerAngle, 0.01f)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat((mstring("cosConeOuterAngle") + buf).c_str(), &light->cosConeOuterAngle, 0.01f)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat((mstring("constantAtt") + buf).c_str(), &light->constantAtt, 0.01f)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat((mstring("linearAtt") + buf).c_str(), &light->linearAtt, 0.01f)) m_spaces->get_current()->update_uniforms();
-			if (ImGui::DragFloat((mstring("quadraticAtt") + buf).c_str(), &light->quadraticAtt, 0.01f)) m_spaces->get_current()->update_uniforms();
+			ImGui::DragFloat3((mstring("Color") + buf).c_str(), &light->color.x, 0.01f);
+			if (ImGui::DragFloat((mstring("coneInnerAngle") + buf).c_str(), &light->coneInnerAngle, 0.01f)) {
+				if (light->coneInnerAngle > light->coneOuterAngle) light->coneOuterAngle = light->coneInnerAngle;
+				if (light->coneInnerAngle < 0.0f) light->coneInnerAngle = 0.0f;
+			}
+			if (ImGui::DragFloat((mstring("coneOuterAngle") + buf).c_str(), &light->coneOuterAngle, 0.01f)) {
+				if (light->coneOuterAngle < light->coneInnerAngle) light->coneInnerAngle = light->coneOuterAngle;
+				if (light->coneOuterAngle < 0.0f) light->coneOuterAngle = 0.0f;
+			}
+			ImGui::DragFloat((mstring("constantAtt") + buf).c_str(), &light->constantAttenuation, 0.01f);
+			ImGui::DragFloat((mstring("linearAtt") + buf).c_str(), &light->linearAttenuation, 0.01f);
+			ImGui::DragFloat((mstring("quadraticAtt") + buf).c_str(), &light->quadraticAttenuation, 0.01f);
 
 			ImGui::EndChild();
+			/*
+			f32 md = 15.0f;
+			f32 ri = md * tanf(glm::radians(light->coneInnerAngle));
+			f32 ro = md * tanf(glm::radians(light->coneOuterAngle));
+
+			mat4f gt = light->entity()->transform->transform;
+			gt = glm::translate(gt, vec3f(0, -md * 0.5f, 0));
+			btTransform t;
+			t.setFromOpenGLMatrix(&gt[0][0]);
+			m_physicsDraw->drawCone(ri, md, 1, t, btVector3(light->color.x, light->color.y, light->color.z));
+			m_physicsDraw->drawCone(ro, md, 1, t, btVector3(light->color.x, light->color.y, light->color.z));
+			m_physicsDraw->drawTransform(t, 5.0f);
+			*/
 		}
 
-		m_debugDraw->begin();
 		auto& ps = physics_sys::get()->physState();
 		ps.enable();
 		ps->world->debugDrawWorld();

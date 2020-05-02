@@ -4,6 +4,9 @@
 #include <r2/engine.h>
 using namespace r2;
 
+#include <marl/event.h>
+#include <marl/waitgroup.h>
+
 namespace rosen {
 	// trim from start (in place)
 	static inline void ltrim(mstring &s) {
@@ -108,9 +111,20 @@ namespace rosen {
 
 
 	source_content::source_content(const mstring& name) {
-		m_video = new video_container(name);
-		m_audio = new audio_container(name);
 		m_name = name;
+
+		marl::WaitGroup g(2);
+
+		marl::schedule([this, g]{
+			m_video = new video_container(m_name);
+			g.done();
+		});
+		marl::schedule([this, g]{
+			m_audio = new audio_container(m_name);
+			g.done();
+		});
+
+		g.wait();
 
 		if (r2engine::files()->exists("./resources/snip/" + name + ".csv")) {
 			data_container* snips = r2engine::files()->open("./resources/snip/" + name + ".csv", DM_TEXT);
@@ -254,7 +268,7 @@ namespace rosen {
 
 	void speech_plan::append(speech_plan* plan) {
 		for (u32 s = 0;s < plan->snippets.size();s++) {
-			snippets.push(*plan->snippets[s]);
+			add(plan->snippets[s]->source, plan->snippets[s]->snippetIdx);
 		}
 	}
 
@@ -329,88 +343,132 @@ namespace rosen {
 
 	source_man::source_man() {
 		directory_info* info = r2engine::files()->parse_directory("./resources/video");
-		
-		for (u32 i = 0;i < info->entry_count();i++) {
-			directory_entry* entry = info->entry(i);
-			if (entry->Type == DET_FOLDER && entry->Name != "." && entry->Name != "..") {
-				m_sources.push_back(new source_content(entry->Name));
+		if (info) {
+			mvector<mstring> source_names;
+			for (u32 i = 0;i < info->entry_count();i++) {
+				directory_entry* entry = info->entry(i);
+				if (entry->Type == DET_FOLDER && entry->Name != "." && entry->Name != "..") {
+					source_names.push_back(entry->Name);
+				}
 			}
-		}
+			r2engine::files()->destroy_directory(info);
 
-		r2engine::files()->destroy_directory(info);
+			marl::Event sourcesLoaded(marl::Event::Mode::Manual);
 
-		if (r2engine::files()->exists("./resources/snip/premix.csv")) {
-			data_container* premixes = r2engine::files()->open("./resources/snip/premix.csv", DM_TEXT);
-			if (premixes) {
-				mstring line;
+			size_t total = source_names.size();
+			for (u16 i = 0;i < source_names.size();i++) {
+				mstring name = source_names[i];
+				marl::schedule([this, total, name, sourcesLoaded]{
+					source_content* content = new source_content(name);
 
-				mstring premixName = "";
-				speech_plan* premixPlan = nullptr;
-				while (!premixes->at_end(1) && premixes->read_line(line)) {
-					if (line.length() == 0) continue;
-					if (line.find_first_of(',') == string::npos) {
-						if (premixPlan) {
-							if (premixPlan->snippets.size() > 0) {
-								mixedWords.push_back({
-									premixPlan,
-									premixName
-								});
+					m_lock.lock();
+					m_sources.push_back(content);
+					size_t current = m_sources.size();
+					if (current == total) m_loadingProgress = 0.90f;
+					else m_loadingProgress = f32(current) / f32(total);
+					m_lock.unlock();
+					if (current == total) sourcesLoaded.signal();
+				});
+			}
+
+			marl::schedule([this, sourcesLoaded]{
+				sourcesLoaded.wait();
+
+				m_lock.lock();
+				if (m_sources.size() == 0) {
+					m_lock.unlock();
+					return;
+				}
+				m_lock.unlock();
+
+				if (r2engine::files()->exists("./resources/snip/premix.csv")) {
+					data_container* premixes = r2engine::files()->open("./resources/snip/premix.csv", DM_TEXT);
+					if (premixes) {
+						mstring line;
+
+						mstring premixName = "";
+						speech_plan* premixPlan = nullptr;
+						while (!premixes->at_end(1) && premixes->read_line(line)) {
+							u32 cur = premixes->position();
+							u32 sz = premixes->size();
+							m_lock.lock();
+							m_loadingProgress = 0.95f + ((f32(cur) / f32(sz)) * 0.05f);
+							m_lock.unlock();
+
+							if (line.length() == 0) continue;
+							if (line.find_first_of(',') == string::npos) {
+								if (premixPlan) {
+									if (premixPlan->snippets.size() > 0) {
+										m_lock.lock();
+										mixedWords.push_back({
+											premixPlan,
+											premixName
+										});
+										m_lock.unlock();
+									} else {
+										r2Error("Premix \"%s\" specified with no snippet table", premixName.c_str());
+									}
+								}
+								premixPlan = new speech_plan();
+								premixName = line;
+								line = "";
+								continue;
 							} else {
-								r2Error("Premix \"%s\" specified with no snippet table", premixName.c_str());
+								mstring cols[2];
+								u8 ccol = 0;
+								for (u8 x = 0;x < line.length();x++) {
+									if (line[x] == ',') {
+										ccol++;
+									} else if (line[x] == '\n' || line[x] == '\r') break;
+									else {
+										cols[ccol] += ccol == 0 ? tolower(line[x]) : line[x];
+									}
+								}
+
+								trim(cols[0]);
+								source_content* src = source(cols[0]);
+								if (!src) {
+									r2Error("Premix \"%s\" references nonexistent source \"%s\"", premixName.c_str(), cols[0].c_str());
+									continue;
+								}
+
+								u32 idx = atoi(cols[1].c_str());
+								if (idx > src->snippets.size()) {
+									r2Error("Premix \"%s\" snippet index %d out of range for source \"%s\"", premixName.c_str(), idx, cols[0]);
+									continue;
+								}
+
+								if (!premixPlan) {
+									r2Error("No premix name specified for snippet table");
+									continue;
+								}
+
+								premixPlan->add(source(cols[0]), idx);
 							}
-						}
-						premixPlan = new speech_plan();
-						premixName = line;
-						line = "";
-						continue;
-					} else {
-						mstring cols[2];
-						u8 ccol = 0;
-						for (u8 x = 0;x < line.length();x++) {
-							if (line[x] == ',') {
-								ccol++;
-							} else if (line[x] == '\n' || line[x] == '\r') break;
-							else {
-								cols[ccol] += ccol == 0 ? tolower(line[x]) : line[x];
-							}
+
+							line = "";
 						}
 
-						trim(cols[0]);
-						source_content* src = source(cols[0]);
-						if (!src) {
-							r2Error("Premix \"%s\" references nonexistent source \"%s\"", premixName.c_str(), cols[0].c_str());
-							continue;
+						if (premixPlan && premixPlan->snippets.size() > 0 && premixName.length() > 0) {
+							m_lock.lock();
+							mixedWords.push_back({
+								premixPlan,
+								premixName
+							});
+							m_lock.unlock();
+						} else if (premixPlan) {
+							r2Error("Premix \"%s\" specified with no snippet table", premixName.c_str());
+							delete premixPlan;
 						}
 
-						u32 idx = atoi(cols[1].c_str());
-						if (idx > src->snippets.size()) {
-							r2Error("Premix \"%s\" snippet index %d out of range for source \"%s\"", premixName.c_str(), idx, cols[0]);
-							continue;
-						}
-
-						if (!premixPlan) {
-							r2Error("No premix name specified for snippet table");
-							continue;
-						}
-
-						premixPlan->add(source(cols[0]), idx);
+						r2engine::files()->destroy(premixes);
 					}
-
-					line = "";
 				}
 
-				if (premixPlan && premixPlan->snippets.size() > 0 && premixName.length() > 0) {
-					mixedWords.push_back({
-						premixPlan,
-						premixName
-					});
-				} else if (premixPlan) {
-					r2Error("Premix \"%s\" specified with no snippet table", premixName.c_str());
-					delete premixPlan;
-				}
-
-				r2engine::files()->destroy(premixes);
-			}
+				m_lock.lock();
+				m_loadingProgress = 1.0f;
+				m_lock.unlock();
+			});
 		}
 	}
 	
@@ -505,9 +563,7 @@ namespace rosen {
 							}
 
 							if (same_phrase) {
-								for (u32 s = 0;s < word.plan->snippets.size();s++) {
-									plan->snippets.push(*word.plan->snippets[s]);
-								}
+								plan->append(word.plan);
 								found_phrase = true;
 								w += swords.size() - 1;
 								break;
@@ -539,11 +595,7 @@ namespace rosen {
 
 			if (!found_phrase && applicable.size() > 0) {
 				possible_selection* snip = applicable[rand() % applicable.size()];
-				if (snip->premixIdx) {
-					for (u32 s = 0;s < mixedWords[snip->premixIdx - 1].plan->snippets.size();s++) {
-						plan->snippets.push(*mixedWords[snip->premixIdx - 1].plan->snippets[s]);
-					}
-				}
+				if (snip->premixIdx) plan->append(mixedWords[snip->premixIdx - 1].plan);
 				else plan->add(m_sources[snip->sourceIdx], snip->snippetIdx);
 			}
 		}
@@ -570,5 +622,12 @@ namespace rosen {
 
 		r2engine::files()->save(csv, "./resources/snip/premix.csv");
 		r2engine::files()->destroy(csv);
+	}
+
+	f32 source_man::loadingProgress() {
+		m_lock.lock();
+		f32 r = m_loadingProgress;
+		m_lock.unlock();
+		return r;
 	}
 };

@@ -154,8 +154,8 @@ namespace rosen {
 
 							if (save_premixes) m_mgr->save_premixes();
 						}
+						ImGui::PopItemWidth();
 					}
-					ImGui::PopItemWidth();
 				}
 			}
 			ImGui::EndChild();

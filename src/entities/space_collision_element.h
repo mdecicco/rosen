@@ -3,7 +3,7 @@
 namespace rosen {
 	class space_collision_element_entity : public r2::scene_entity {
 		public:
-			space_collision_element_entity(const r2::mstring& name, const r2::mat4f& transform, btTriangleMesh* mesh);
+			space_collision_element_entity(const r2::mstring& name, const r2::mat4f& transform, btCollisionShape* shape);
 
 			~space_collision_element_entity();
 
@@ -19,6 +19,6 @@ namespace rosen {
 
 		protected:
 			r2::mat4f m_initialTransform;
-			btTriangleMesh* m_mesh;
+			btCollisionShape* m_shape;
 	};
 };
