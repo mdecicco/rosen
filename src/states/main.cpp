@@ -144,31 +144,11 @@ namespace rosen {
 
 		//m_spaces->get_current()->debug_draw(m_debugDraw);
 
+		/*
 		lighting_component* lights[16];
 		size_t light_count = lighting_sys::get()->get_lights(16, lights);
 		for (u8 i = 0;i < light_count;i++) {
 			lighting_component* light = lights[i];
-			char buf[32] = { 0 };
-			snprintf(buf, 32, "##light%d", i);
-			ImGui::BeginChild(buf, ImVec2(600, 300));
-
-			ImGui::Text("Light %s", light->entity()->name().c_str());
-
-			ImGui::DragFloat3((mstring("Color") + buf).c_str(), &light->color.x, 0.01f);
-			if (ImGui::DragFloat((mstring("coneInnerAngle") + buf).c_str(), &light->coneInnerAngle, 0.01f)) {
-				if (light->coneInnerAngle > light->coneOuterAngle) light->coneOuterAngle = light->coneInnerAngle;
-				if (light->coneInnerAngle < 0.0f) light->coneInnerAngle = 0.0f;
-			}
-			if (ImGui::DragFloat((mstring("coneOuterAngle") + buf).c_str(), &light->coneOuterAngle, 0.01f)) {
-				if (light->coneOuterAngle < light->coneInnerAngle) light->coneInnerAngle = light->coneOuterAngle;
-				if (light->coneOuterAngle < 0.0f) light->coneOuterAngle = 0.0f;
-			}
-			ImGui::DragFloat((mstring("constantAtt") + buf).c_str(), &light->constantAttenuation, 0.01f);
-			ImGui::DragFloat((mstring("linearAtt") + buf).c_str(), &light->linearAttenuation, 0.01f);
-			ImGui::DragFloat((mstring("quadraticAtt") + buf).c_str(), &light->quadraticAttenuation, 0.01f);
-
-			ImGui::EndChild();
-			/*
 			f32 md = 15.0f;
 			f32 ri = md * tanf(glm::radians(light->coneInnerAngle));
 			f32 ro = md * tanf(glm::radians(light->coneOuterAngle));
@@ -180,8 +160,8 @@ namespace rosen {
 			m_physicsDraw->drawCone(ri, md, 1, t, btVector3(light->color.x, light->color.y, light->color.z));
 			m_physicsDraw->drawCone(ro, md, 1, t, btVector3(light->color.x, light->color.y, light->color.z));
 			m_physicsDraw->drawTransform(t, 5.0f);
-			*/
 		}
+		*/
 
 		auto& ps = physics_sys::get()->physState();
 		ps.enable();

@@ -1,9 +1,13 @@
 #include <states/initial_loading.h>
 #include <managers/source_man.h>
 
+#include <ui/keyframe_editor.h>
+
 #include <r2/engine.h>
 #define INITIAL_LOADING_STATE_UPDATE_RATE 10.0f
 namespace rosen {
+	static kf::KeyframeEditorInterface* kfi = nullptr;
+
 	initial_loading_state::initial_loading_state(source_man* sourceMgr) :
 		state("initial_loading_state", MBtoB(15)), m_progress(0.0f, 1.0f / INITIAL_LOADING_STATE_UPDATE_RATE, interpolate::easeInOutCubic)
 	{
@@ -40,6 +44,13 @@ namespace rosen {
 		// state is still active at this point, but will be
 		// deactivated immediately after this function returns.
 		// This state will be activated immediately after that
+
+		kfi = new kf::KeyframeEditorInterface();
+		kfi->AddTrack<float>("test abc", 0.0f);
+		kfi->AddTrack<float>("testy", 0.0f);
+		kfi->AddTrack<float>("grumpo balls", 0.0f);
+		kfi->SetKeyframe("testy", 1.0f, 3.0f);
+		kfi->Duration = 10.0f;
 	}
 
 	void initial_loading_state::becameActive() {
@@ -54,6 +65,8 @@ namespace rosen {
 		// You don't _have_ to destroy entities here, or
 		// deallocate anything allocated within this state's
 		// memory, but you should...
+
+		delete kfi;
 	}
 
 	void initial_loading_state::becameInactive() {
@@ -93,6 +106,8 @@ namespace rosen {
 
 	void initial_loading_state::onRender() {
 		ImGui::ProgressBar((f32)m_progress);
+
+		kf::KeyframeEditor(kfi, ImVec2(500,200));
 	}
 
 	void initial_loading_state::onEvent(event* evt) {

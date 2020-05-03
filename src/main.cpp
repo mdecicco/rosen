@@ -25,8 +25,8 @@ int main(int argc, char** argv) {
 	rosen::speech_system::get()->sources = sourceMgr;
 
 	eng->states()->register_state(new rosen::initial_loading_state(sourceMgr));
-	eng->states()->register_state(new rosen::editor_state(sourceMgr));
-	eng->states()->register_state(new rosen::main_state(sourceMgr));
+	//eng->states()->register_state(new rosen::editor_state(sourceMgr));
+	//eng->states()->register_state(new rosen::main_state(sourceMgr));
 	eng->states()->activate("initial_loading_state");
 
 	int ret = eng->run();
