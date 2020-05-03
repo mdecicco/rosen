@@ -1,4 +1,5 @@
 #include <r2/config.h>
+#include <ui/keyframe_editor.h>
 
 namespace r2 {
 	class audio_source;
@@ -32,5 +33,6 @@ namespace rosen {
 			// ui params
 			r2::i32 m_selectedSourceIdx;
 			r2::f32 m_playPos;
+			kf::KeyframeEditorInterface* m_keyframes;
 	};
 };

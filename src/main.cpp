@@ -19,6 +19,9 @@ int main(int argc, char** argv) {
 	auto eng = r2engine::get();
 
 	eng->open_window(1920, 980, "Rosen", true);
+	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->AddFontFromFileTTF("./resources/font/arial.ttf", 16.0f);
+
 	eng->renderer()->set_driver(new gl_render_driver(eng->renderer()));
 
 	rosen::source_man* sourceMgr = new rosen::source_man();

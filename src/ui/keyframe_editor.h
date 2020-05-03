@@ -5,9 +5,19 @@
 #include <list>
 #include <unordered_map>
 namespace kf {
-	template <typename T>
-	struct Keyframe {
+	struct KeyframeBase {
+		virtual ~KeyframeBase() { }
 		float time;
+
+		struct {
+			bool context_window_open;
+			bool dragging;
+			float last_drag_sec;
+		} draw_data;
+	};
+
+	template <typename T>
+	struct Keyframe : public KeyframeBase {
 		T value;
 	};
 
@@ -15,6 +25,7 @@ namespace kf {
 		virtual ~KeyframeTrackBase() { }
 		std::string name;
 		ImColor color;
+		std::list<KeyframeBase> keyframes;
 	};
 
 	template <typename T>
@@ -22,43 +33,58 @@ namespace kf {
 		typedef T (*InterpolatorCallback)(const T&, const T&, float);
 		static inline T DefaultInterpolator(const T& a, const T& b, float w) { return a + ((b - a) * w); }
 		InterpolatorCallback interpolator;
-		std::list<Keyframe<T>> keyframes;
 		T initial_value;
 
 		inline T ValueAtTime(float time) {
 			for (auto i = keyframes.begin();i != keyframes.end();i++) {
 				auto n = std::next(i);
 				if (i->time <= time) {
-					if (n == keyframes.end()) return i->value;
-					else return interpolator(i->value, n->value, (time - i->time) / (n->time - i->time));
+					Keyframe<T>& f = dynamic_cast<Keyframe<T>&>(*i);
+					if (n == keyframes.end()) return f.value;
+					else {
+						Keyframe<T>& nf = dynamic_cast<Keyframe<T>&>(*n);
+						return interpolator(f.value, nf.value, (time - f.time) / (nf.time - f.time));
+					}
 				}
 			}
 
 			if (keyframes.size() > 0) {
-				auto& kfr = *keyframes.begin();
+				Keyframe<T>& kfr = dynamic_cast<Keyframe<T>&>(*keyframes.begin());
 				return interpolator(initial_value, kfr.value, time / kfr.time);
 			}
+
 			return initial_value;
 		}
 
 		inline void AddKeyframe(const T& value, float time) {
 			for (auto i = keyframes.begin();i != keyframes.end();i++) {
 				if (i->time > time + 0.0001f) {
-					keyframes.insert(i, { time, value });
+					Keyframe<T> f;
+					f.time = time;
+					f.value = value;
+					f.draw_data.context_window_open = false;
+					f.draw_data.dragging = false;
+					keyframes.insert(i, f);
 					return;
 				} else if (i->time < time + 0.0001f && i->time > time - 0.0001f) {
-					i->value = value;
+					KeyframeBase* kfr = &(*i);
+					((Keyframe<T>*)kfr)->value = value;
 					return;
 				}
 			}
 
-			keyframes.push_back({ time, value });
+			Keyframe<T> f;
+			f.time = time;
+			f.value = value;
+			f.draw_data.context_window_open = false;
+			f.draw_data.dragging = false;
+			keyframes.push_back(f);
 		}
 	};
 
 	class KeyframeEditorInterface {
 		public:
-			KeyframeEditorInterface() { }
+			KeyframeEditorInterface();
 			~KeyframeEditorInterface();
 
 			template <typename T>
@@ -108,8 +134,15 @@ namespace kf {
 
 			float CurrentTime;
 			float Duration;
-			float ScaleX;
-			float ScrollX;
+
+			struct {
+				bool scrubbing;
+				bool scrolling;
+				float scale_x;
+				float scroll_x;
+				float scroll_start_x;
+				float last_window_width;
+			} draw_data;
 		protected:
 			std::unordered_map<std::string, KeyframeTrackBase*> m_tracks;
 			std::vector<KeyframeTrackBase*> m_contiguousTracks;

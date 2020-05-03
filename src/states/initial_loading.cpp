@@ -49,7 +49,13 @@ namespace rosen {
 		kfi->AddTrack<float>("test abc", 0.0f);
 		kfi->AddTrack<float>("testy", 0.0f);
 		kfi->AddTrack<float>("grumpo balls", 0.0f);
+		kfi->SetKeyframe("test abc", 1.0f, 2.0f);
 		kfi->SetKeyframe("testy", 1.0f, 3.0f);
+		kfi->SetKeyframe("grumpo balls", 1.0f, 4.0f);
+		kfi->SetKeyframe("grumpo balls", 1.0f, 4.0f);
+		kfi->SetKeyframe("grumpo balls", 2.0f, 4.1f);
+		kfi->SetKeyframe("grumpo balls", 3.0f, 4.2f);
+		kfi->SetKeyframe("grumpo balls", 4.0f, 4.3f);
 		kfi->Duration = 10.0f;
 	}
 
@@ -107,7 +113,7 @@ namespace rosen {
 	void initial_loading_state::onRender() {
 		ImGui::ProgressBar((f32)m_progress);
 
-		kf::KeyframeEditor(kfi, ImVec2(500,200));
+		kf::KeyframeEditor(kfi);
 	}
 
 	void initial_loading_state::onEvent(event* evt) {
