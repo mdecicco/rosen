@@ -4,7 +4,7 @@ class TestSpace {
 		this.time = 0.0;
 		this.rosens = [];
 		this.stage_rosen = null;
-		this.continue_crowd_speaking = true;
+		this.continue_crowd_speaking = false;
 		this.actions = [];
 	}
 	
@@ -19,6 +19,7 @@ class TestSpace {
 	initialize () {
 		engine.log('init');
 		
+		this.continue_crowd_speaking = true;
 		this.activate_camera('audience_view');
 		
 		const stage_rosen_spawn = this.get_poi('stage_rosen_spawn');

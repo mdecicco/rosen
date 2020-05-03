@@ -10,7 +10,7 @@
 #include <r2/utilities/fly_camera.h>
 #include <r2/utilities/debug_drawer.h>
 
-#include <utils/imguizmo.h>
+#include <ui/imguizmo.h>
 
 namespace rosen {
 	editor_state::editor_state(source_man* sourceMgr) : state("editor_state", MBtoB(64)) {
@@ -52,7 +52,7 @@ namespace rosen {
 		// This state will be activated immediately after that
 
 		m_spaces = new space_man(getScene());
-		m_ui = new ui_man(m_sources, getScene());
+		m_ui = new ui_man(m_sources, m_spaces, getScene());
 		m_debugShader = getScene()->load_shader("./resources/shader/debug.glsl", "debug_shader");
 		m_debugDraw = new debug_drawer(getScene(), m_debugShader, 131072 * 2, 8192 * 3);
 		m_physicsDraw = new physics_drawer(m_debugDraw);

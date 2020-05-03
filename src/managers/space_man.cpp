@@ -84,32 +84,7 @@ namespace rosen {
 	}
 
 	rosen_space::~rosen_space() {
-		if (m_camera) m_camera->destroy();
-
-		if (!m_deinit.IsEmpty()) {
-			auto isolate = r2engine::isolate();
-			m_deinit.Get(isolate)->Call(isolate->GetCurrentContext(), m_scriptObj.Get(isolate), 0, nullptr);
-		}
-
-		m_elements.for_each([this](space_element_entity** element) {
-			render_node* node = (*element)->node();
-			delete node->material_instance();
-			this->m_mgr->get_scene()->remove_node(node);
-			(*element)->destroy();
-			return true;
-		});
-
-		m_colliders.for_each([this](space_collision_element_entity** element) {
-			(*element)->destroy();
-			return true;
-		});
-
-		for (u32 i = 0;i < m_rosens.size();i++) (*m_rosens[i])->destroy();
-
-		m_scriptObj.Reset();
-		m_init.Reset();
-		m_deinit.Reset();
-		m_update.Reset();
+		unload();
 	}
 
 	bool rosen_space::load() {
@@ -259,6 +234,72 @@ namespace rosen {
 		}
 
 		return true;
+	}
+
+	void rosen_space::unload() {
+		if (m_camera) m_camera->destroy();
+		m_camera = nullptr;
+
+		if (!m_deinit.IsEmpty()) {
+			auto isolate = r2engine::isolate();
+			m_deinit.Get(isolate)->Call(isolate->GetCurrentContext(), m_scriptObj.Get(isolate), 0, nullptr);
+		}
+
+		m_cameraNames.clear();
+		m_cameraAngles.clear();
+
+		m_elements.for_each([this](space_element_entity** element) {
+			render_node* node = (*element)->node();
+			delete node->material_instance();
+			this->m_mgr->get_scene()->remove_node(node);
+			(*element)->destroy();
+			return true;
+		});
+		m_elements.clear();
+
+		m_lights.for_each([this](space_light_element_entity** light) {
+			(*light)->destroy();
+			return true;
+		});
+		m_lights.clear();
+
+		m_colliders.for_each([this](space_collision_element_entity** collider) {
+			(*collider)->destroy();
+			return true;
+		});
+		m_colliders.clear();
+
+		m_rosens.for_each([this](rosen_entity** rosen) {
+			(*rosen)->destroy();
+			return true;
+		});
+		m_rosens.clear();
+
+		m_rNodes.for_each([this](render_node** node) {
+			m_mgr->get_scene()->remove_node(*node);
+			return true;
+		});
+		m_rNodes.clear();
+
+		m_shapes.for_each([this](btCollisionShape** shape) {
+			delete *shape;
+			return true;
+		});
+		m_shapes.clear();
+
+		m_textures.for_each([this](texture_buffer** tex) {
+			m_mgr->get_scene()->destroy(*tex);
+			return true;
+		});
+		m_textures.clear();
+
+		m_pointsOfInterest.clear();
+		m_currentCamera = 0;
+
+		m_scriptObj.Reset();
+		m_init.Reset();
+		m_deinit.Reset();
+		m_update.Reset();
 	}
 
 	void rosen_space::initialize() {
@@ -1150,7 +1191,35 @@ namespace rosen {
 
 
 	rosen_space::scene_graph::~scene_graph() {
-		// ...
+		if (meshes) {
+			for (u16 i = 0;i < mesh_count;i++) {
+				if (meshes[i].material.texture) delete [] meshes[i].material.texture;
+				if (meshes[i].vertices) delete [] meshes[i].vertices;
+				if (meshes[i].indices) delete [] meshes[i].indices;
+			}
+			delete [] meshes;
+			meshes = nullptr;
+			mesh_count = 0;
+		}
+
+		if (collision_meshes) {
+			for (u16 i = 0;i < collider_count;i++) {
+				if (collision_meshes[i].indices) delete [] collision_meshes[i].indices;
+				if (collision_meshes[i].vertices) delete [] collision_meshes[i].vertices;
+			}
+			delete [] collision_meshes;
+			collision_meshes = nullptr;
+			collider_count = 0;
+		}
+
+		if (nodes) {
+			for (u32 i = 0;i < node_count;i++) {
+				if (nodes[i].name) delete [] nodes[i].name;
+			}
+			delete [] nodes;
+			nodes = nullptr;
+			node_count = 0;
+		}
 	}
 
 	mat4f rosen_space::camera_node::projection() const {
@@ -1214,5 +1283,11 @@ namespace rosen {
 			delete *space;
 			return true;
 		});
+	}
+
+	void space_man::load_space(rosen_space* space) {
+		if (m_current) m_current->unload();
+		space->load();
+		m_current = space;
 	}
 };

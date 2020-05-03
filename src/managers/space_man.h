@@ -124,14 +124,26 @@ namespace rosen {
 			~rosen_space();
 
 			bool load();
+			void unload();
 			void initialize();
 
 			void update(r2::f32 dt);
 			void set_current_camera(r2::u8 idx, bool noTransition = false);
 
-			inline r2::mstring name() const { return m_name; }
+			inline const r2::mstring& name() const { return m_name; }
 			inline size_t light_count() const { return m_lights.size(); }
 			inline space_light_element_entity* light(r2::u8 idx) { return *m_lights[idx]; }
+			inline size_t element_count() const { return m_elements.size(); }
+			inline space_element_entity* element(r2::u8 idx) { return *m_elements[idx]; }
+			inline size_t camera_count() const { return m_cameraAngles.size(); }
+			inline camera_node* camera(r2::u8 idx) { return m_cameraAngles[idx]; }
+			inline const r2::mstring& camera_name(r2::u8 idx) const { return m_cameraNames[idx]; }
+			inline size_t collider_count() const { return m_colliders.size(); }
+			inline space_collision_element_entity* collider(r2::u8 idx) { return *m_colliders[idx]; }
+			inline size_t point_of_interest_count() const { return m_pointsOfInterest.size(); }
+			inline r2::mvector<r2::mstring> point_of_interest_names() const { return m_pointsOfInterest.keys(); }
+			inline r2::mat4f* point_of_interest(r2::mstring name) { return m_pointsOfInterest[name]; }
+			inline rosen_camera_entity* camera() const { return m_camera; }
 
 			void debug_draw(r2::debug_drawer* draw);
 
@@ -180,6 +192,9 @@ namespace rosen {
 			inline r2::scene* get_scene() const { return m_scene; }
 
 			inline rosen_space* get_current() const { return m_current; }
+			inline size_t space_count() const { return m_spaces.size(); }
+			inline rosen_space* space(size_t idx) { return *m_spaces[idx]; }
+			void load_space(rosen_space* space);
 
 		protected:
 			r2::vertex_format* m_vformat;
