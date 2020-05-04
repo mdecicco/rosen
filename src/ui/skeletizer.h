@@ -1,10 +1,13 @@
 #include <r2/config.h>
-#include <ui/keyframe_editor.h>
 
 namespace r2 {
 	class audio_source;
 	class texture_buffer;
 	class scene;
+};
+
+namespace kf {
+	class KeyframeEditorInterface;
 };
 
 namespace rosen {
@@ -23,6 +26,8 @@ namespace rosen {
 			void render(bool* isOpen);
 
 		protected:
+			void init_keyframe_data();
+
 			source_content* m_source;
 			source_man* m_mgr;
 

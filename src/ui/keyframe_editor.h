@@ -8,6 +8,7 @@ namespace kf {
 	struct KeyframeBase {
 		virtual ~KeyframeBase() { }
 		float time;
+		void* user_pointer;
 
 		struct {
 			bool context_window_open;
@@ -26,6 +27,7 @@ namespace kf {
 		std::string name;
 		ImColor color;
 		std::list<KeyframeBase> keyframes;
+		void* user_pointer;
 	};
 
 	template <typename T>
@@ -56,7 +58,7 @@ namespace kf {
 			return initial_value;
 		}
 
-		inline void AddKeyframe(const T& value, float time) {
+		inline void AddKeyframe(const T& value, float time, void* user_pointer = nullptr) {
 			for (auto i = keyframes.begin();i != keyframes.end();i++) {
 				if (i->time > time + 0.0001f) {
 					Keyframe<T> f;
@@ -64,10 +66,12 @@ namespace kf {
 					f.value = value;
 					f.draw_data.context_window_open = false;
 					f.draw_data.dragging = false;
+					f.user_pointer = user_pointer;
 					keyframes.insert(i, f);
 					return;
 				} else if (i->time < time + 0.0001f && i->time > time - 0.0001f) {
 					KeyframeBase* kfr = &(*i);
+					kfr->user_pointer = user_pointer;
 					((Keyframe<T>*)kfr)->value = value;
 					return;
 				}
@@ -76,6 +80,7 @@ namespace kf {
 			Keyframe<T> f;
 			f.time = time;
 			f.value = value;
+			f.user_pointer = user_pointer;
 			f.draw_data.context_window_open = false;
 			f.draw_data.dragging = false;
 			keyframes.push_back(f);
@@ -88,12 +93,13 @@ namespace kf {
 			~KeyframeEditorInterface();
 
 			template <typename T>
-			inline void AddTrack(const std::string& name, const T& initial, const ImColor& color = ImColor(1.0f, 1.0f, 1.0f), typename KeyframeTrack<T>::InterpolatorCallback interpolator = KeyframeTrack<T>::DefaultInterpolator) {
+			inline void AddTrack(const std::string& name, const T& initial, const ImColor& color = ImColor(1.0f, 1.0f, 1.0f), typename KeyframeTrack<T>::InterpolatorCallback interpolator = KeyframeTrack<T>::DefaultInterpolator, void* user_pointer = nullptr) {
 				KeyframeTrack<T>* track = new KeyframeTrack<T>;
 				track->name = name;
 				track->color = color;
 				track->interpolator = interpolator ? interpolator : KeyframeTrack<T>::DefaultInterpolator;
 				track->initial_value = initial;
+				track->user_pointer = user_pointer;
 				m_tracks[name] = track;
 				m_contiguousTracks.push_back(track);
 			}
@@ -101,10 +107,10 @@ namespace kf {
 			void RemoveTrack(const std::string& name);
 
 			template <typename T>
-			inline void SetKeyframe(const std::string& track, const T& value, float time) {
+			inline void SetKeyframe(const std::string& track, const T& value, float time, void* user_pointer = nullptr) {
 				auto it = m_tracks.find(track);
 				assert(it != m_tracks.end());
-				((KeyframeTrack<T>*)it->second)->AddKeyframe(value, time);
+				((KeyframeTrack<T>*)it->second)->AddKeyframe(value, time, user_pointer);
 			}
 
 			template <typename T>
@@ -148,5 +154,5 @@ namespace kf {
 			std::vector<KeyframeTrackBase*> m_contiguousTracks;
 	};
 
-	void KeyframeEditor(KeyframeEditorInterface* data, const ImVec2& size = ImVec2(0, 0));
+	bool KeyframeEditor(KeyframeEditorInterface* data, const ImVec2& size = ImVec2(0, 0));
 };

@@ -39,7 +39,7 @@ namespace kf {
 	inline float _max(float a, float b) { return a > b ? a : b; };
 	inline float _min(float a, float b) { return a < b ? a : b; };
 
-	void KeyframeEditor(KeyframeEditorInterface* data, const ImVec2& size) {
+	bool KeyframeEditor(KeyframeEditorInterface* data, const ImVec2& size) {
 		static const float track_padding = 5.0f;
 		static const float track_margin = 5.5f;
 		static const float space_between_name_and_keyframes = 2.0f;
@@ -57,6 +57,8 @@ namespace kf {
 		static const ImU32 scroll_bg_color = ImColor(0.0f, 0.0f, 0.0f, 0.4f);
 		static const ImU32 scroll_bar_color = ImColor(1.0f, 1.0f, 1.0f, 0.1f);
 		static const ImU32 scroll_bar_highlight_color = ImColor(1.0f, 1.0f, 1.0f, 0.25f);
+
+		bool keyframes_modified = false;
 
 		PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(track_margin, track_margin));
 
@@ -98,27 +100,12 @@ namespace kf {
 			auto sec_to_x = [time_bar_tl, time_bar_br, data](float t) {
 				float scroll_offset = data->draw_data.scroll_x * data->draw_data.scale_x;
 				float fac = (t / data->Duration) * data->draw_data.scale_x;
-				float x = time_bar_tl.x + ((time_bar_br.x - time_bar_tl.x) * fac) - scroll_offset;
-
-
-				/*
-				if (x < time_bar_tl.x) x = time_bar_tl.x;
-				else if (x > time_bar_br.x) x = time_bar_br.x;
-				*/
-
-				return x;
+				return time_bar_tl.x + ((time_bar_br.x - time_bar_tl.x) * fac) - scroll_offset;
 			};
 			auto x_to_sec = [time_bar_tl, time_bar_br, data](float x) {
 				float scroll_offset = data->draw_data.scroll_x * data->draw_data.scale_x;
 				float fac = (((x + scroll_offset) - time_bar_tl.x) / (time_bar_br.x - time_bar_tl.x)) / data->draw_data.scale_x;
-				float t = fac * data->Duration;
-
-				/*
-				if (t < 0.0f) t = 0.0f;
-				else if (t > data->Duration) t = data->Duration;
-				*/
-
-				return t;
+				return fac * data->Duration;
 			};
 
 			ImVec2 mp = GetMousePos();
@@ -155,10 +142,12 @@ namespace kf {
 				}
 
 				for (float t = increment;t < data->Duration;t += increment) {
+					float x = sec_to_x(t);
+					if (x < time_bar_tl.x || x > time_bar_br.x) continue;
 					memset(tbuf, 0, 8);
 					snprintf(tbuf, 8, "%.2fs", t);
-					dl->AddLine(ImVec2(sec_to_x(t), time_bar_tl.y), ImVec2(sec_to_x(t), time_bar_br.y), time_bar_tick_color, 1.0f);
-					dl->AddText(ImVec2(sec_to_x(t) + track_padding, time_bar_tl.y + track_padding), 0xFFFFFFFF, tbuf);
+					dl->AddLine(ImVec2(x, time_bar_tl.y), ImVec2(x, time_bar_br.y), time_bar_tick_color, 1.0f);
+					dl->AddText(ImVec2(x + track_padding, time_bar_tl.y + track_padding), 0xFFFFFFFF, tbuf);
 				}
 				dl->PopClipRect();
 			}
@@ -182,6 +171,7 @@ namespace kf {
 					for (auto k = t->keyframes.begin();k != t->keyframes.end();k++) {
 						float x = sec_to_x(k->time);
 						float width = _max(_min(sec_to_x(keyframe_width_in_seconds) - sec_to_x(0.0f), keyframe_max_width_in_pixels), keyframe_min_width_in_pixels);
+						if ((x + width) < track_keyframes_tl.x || x > track_br.x) continue;
 						ImVec2 f_tl = ImVec2(x, track_tl.y + track_padding);
 						ImVec2 f_br = ImVec2(x + width, track_br.y - track_padding);
 
@@ -208,6 +198,7 @@ namespace kf {
 								if (Selectable("Delete")) {
 									k->draw_data.context_window_open = false;
 									remove_iter = k;
+									keyframes_modified = true;
 								}
 								EndPopup();
 							}
@@ -226,6 +217,7 @@ namespace kf {
 							if (k->draw_data.dragging) {
 								move_iter = k;
 								k->draw_data.dragging = false;
+								keyframes_modified = true;
 							}
 						} else {
 							if (k->draw_data.dragging) {
@@ -234,6 +226,7 @@ namespace kf {
 								k->time += ds;
 								if (k->time < 0.0f) k->time = 0.0f;
 								else if (k->time > data->Duration) k->time = data->Duration;
+								keyframes_modified = true;
 							}
 
 							if (!found_dragged && hovering && IsMouseClicked(0)) {
@@ -314,5 +307,7 @@ namespace kf {
 		EndChild();
 
 		PopStyleVar();
+
+		return keyframes_modified;
 	}
 };

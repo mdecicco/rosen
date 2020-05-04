@@ -1,4 +1,5 @@
 #include <ui/skeletizer.h>
+#include <ui/keyframe_editor.h>
 #include <managers/source_man.h>
 #include <utils/video.h>
 
@@ -6,6 +7,7 @@
 #include <r2/managers/drivers/gl/driver.h>
 
 using namespace r2;
+using namespace kf;
 
 namespace rosen {
 	inline GLuint textureId(texture_buffer* tex) {
@@ -49,11 +51,33 @@ namespace rosen {
 			m_source->bones[b].set(0.0f, true);
 		}
 		m_source->save_bones();
+
+		init_keyframe_data();
 	}
 
 	source_skeletizer::~source_skeletizer() {
 		delete m_audio;
 		m_scene->destroy(m_texture);
+	}
+
+	void source_skeletizer::init_keyframe_data() {
+		if (m_keyframes) delete m_keyframes;
+
+		m_keyframes = new KeyframeEditorInterface();
+		m_keyframes->Duration = m_source->duration();
+		for (u8 b = 0;b < bi_bone_count;b++) {
+			m_keyframes->AddTrack<vec2f>(
+				bone_names[b],
+				m_source->bones[b].position(0.0f),
+				ImColor(1.0f, 1.0f, 1.0f),
+				KeyframeTrack<vec2f>::DefaultInterpolator,
+				&m_source->bones[b]
+			);
+			KeyframeTrack<vec2f>* track = m_keyframes->Track<vec2f>(bone_names[b]);
+			for (auto k = m_source->bones[b].frames.begin();k != m_source->bones[b].frames.end();k++) {
+				track->AddKeyframe(k->position, k->time, k->hidden ? (void*)true : nullptr);
+			}
+		}
 	}
 
 	void source_skeletizer::skeletons_modified() {
@@ -93,6 +117,7 @@ namespace rosen {
 						m_source->bones[b].set(0.0f, true);
 					}
 					m_source->save_bones();
+					init_keyframe_data();
 				}
 
 
@@ -148,7 +173,9 @@ namespace rosen {
 								foundActive = true;
 							}
 							if (ImGui::IsMouseClicked(1)) {
-								m_source->bones[b].set(frameTime, !m_source->bones[b].hidden(frameTime));
+								bool hide = !m_source->bones[b].hidden(frameTime);
+								m_source->bones[b].set(frameTime, hide);
+								m_keyframes->SetKeyframe<vec2f>(bone_names[b], m_source->bones[b].position(frameTime), frameTime, hide ? (void*)true : nullptr);
 								m_source->save_bones();
 								foundActive = true;
 							}
@@ -157,10 +184,13 @@ namespace rosen {
 						if (m_source->bones[b].dragging) {
 							ImVec2 del = ImGui::GetMouseDragDelta(0);
 							if (del.x != 0.0f || del.y != 0.0f) {
-								m_source->bones[b].set(frameTime, vec2f(
+								bool hide = m_source->bones[b].hidden(frameTime);
+								vec2f pos = vec2f(
 									(mp.x - windowTL.x) / imgSize.x,
 									(mp.y - windowTL.y) / imgSize.y
-								));
+								);
+								m_source->bones[b].set(frameTime, pos);
+								m_keyframes->SetKeyframe<vec2f>(bone_names[b], pos, frameTime, hide ? (void*)true : nullptr);
 							}
 							foundActive = true;
 						}
@@ -192,7 +222,7 @@ namespace rosen {
 				ImGui::PopItemWidth();
 			}
 			ImGui::EndChild();
-
+			/*
 			ImGui::BeginChild("##sk_bot", ImVec2(ImGui::GetWindowContentRegionWidth(), 200.0f), true);
 			{
 				auto dl = ImGui::GetWindowDrawList();
@@ -221,6 +251,30 @@ namespace rosen {
 				}
 			}
 			ImGui::EndChild();
+			*/
+			m_keyframes->CurrentTime = m_playPos;
+			if (KeyframeEditor(m_keyframes, ImVec2(0.0f, 200.0f))) {
+				for (u32 t = 0;t < m_keyframes->TrackCount();t++) {
+					KeyframeTrack<vec2f>* track = m_keyframes->Track<vec2f>(t);
+					source_content::bone* bone = (source_content::bone*)track->user_pointer;
+					bone->frames.clear();
+					for (auto k = track->keyframes.begin();k != track->keyframes.end();k++) {
+						bone->frames.push_back({
+							k->time,
+							((Keyframe<vec2f>*)&(*k))->value,
+							k->user_pointer != nullptr
+						});
+					}
+				}
+
+				m_source->save_bones()
+			}
+
+			if (m_keyframes->CurrentTime != m_playPos) {
+				m_playPos = m_keyframes->CurrentTime;
+				m_audio->setPlayPosition(m_playPos);
+				if (!m_audio->isPlaying()) m_source->frame(m_playPos, m_texture);
+			}
 		}
 
 		if (prevValue && !(*isOpen)) {

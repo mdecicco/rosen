@@ -342,7 +342,7 @@ namespace rosen {
 
 
 	source_man::source_man() {
-		return;
+		//return;
 
 		directory_info* info = r2engine::files()->parse_directory("./resources/video");
 		if (info) {
