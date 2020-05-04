@@ -79,11 +79,12 @@ namespace kf {
 
 			Keyframe<T> f;
 			f.time = time;
-			f.value = value;
 			f.user_pointer = user_pointer;
 			f.draw_data.context_window_open = false;
 			f.draw_data.dragging = false;
 			keyframes.push_back(f);
+			Keyframe<T>* back = ((Keyframe<T>*)(&keyframes.back()));
+			back->value = value;
 		}
 	};
 
