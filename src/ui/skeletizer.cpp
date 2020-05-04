@@ -52,6 +52,7 @@ namespace rosen {
 		}
 		m_source->save_bones();
 
+		m_keyframes = nullptr;
 		init_keyframe_data();
 	}
 
@@ -267,7 +268,7 @@ namespace rosen {
 					}
 				}
 
-				m_source->save_bones()
+				m_source->save_bones();
 			}
 
 			if (m_keyframes->CurrentTime != m_playPos) {
