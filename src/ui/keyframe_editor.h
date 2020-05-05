@@ -145,9 +145,12 @@ namespace kf {
 			struct {
 				bool scrubbing;
 				bool scrolling;
+				bool v_scrolling;
 				float scale_x;
 				float scroll_x;
 				float scroll_start_x;
+				float scroll_y;
+				float scroll_start_y;
 				float last_window_width;
 			} draw_data;
 		protected:

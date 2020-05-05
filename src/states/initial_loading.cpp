@@ -48,15 +48,22 @@ namespace rosen {
 		kfi = new kf::KeyframeEditorInterface();
 		kfi->AddTrack<float>("test abc", 0.0f);
 		kfi->AddTrack<float>("testy", 0.0f);
-		kfi->AddTrack<float>("grumpo balls", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 0", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 1", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 2", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 3", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 4", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 5", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 6", 0.0f);
+		kfi->AddTrack<float>("grumpo balls 7", 0.0f);
 		kfi->SetKeyframe("test abc", 1.0f, 2.0f);
 		kfi->SetKeyframe("testy", 1.0f, 3.0f);
-		kfi->SetKeyframe("grumpo balls", 1.0f, 4.0f);
-		kfi->SetKeyframe("grumpo balls", 1.0f, 4.0f);
-		kfi->SetKeyframe("grumpo balls", 2.0f, 4.1f);
-		kfi->SetKeyframe("grumpo balls", 3.0f, 4.2f);
-		kfi->SetKeyframe("grumpo balls", 4.0f, 4.3f);
-		kfi->Duration = 10.0f;
+		kfi->SetKeyframe("grumpo balls 0", 1.0f, 4.0f);
+		kfi->SetKeyframe("grumpo balls 0", 1.0f, 4.0f);
+		kfi->SetKeyframe("grumpo balls 0", 2.0f, 4.1f);
+		kfi->SetKeyframe("grumpo balls 0", 3.0f, 4.2f);
+		kfi->SetKeyframe("grumpo balls 0", 4.0f, 4.3f);
+		kfi->Duration = 60.0f;
 	}
 
 	void initial_loading_state::becameActive() {

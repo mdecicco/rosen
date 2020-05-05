@@ -96,19 +96,20 @@ namespace rosen {
 
 		bool prevValue = *isOpen;
 		if (ImGui::Begin("Skeletizer", isOpen)) {
-			ImGui::BeginChild("##sk_top", ImVec2(ImGui::GetWindowWidth(), ImGui::GetWindowHeight() - 250.0f));
-			{
-				ImGui::Columns(2);
-				f32 width = ImGui::GetColumnWidth();
-				f32 height = ImGui::GetWindowHeight();
-				ImGui::PushItemWidth(width - 10.0f);
-				auto get_name = [](void* data, i32 idx, const char** out) {
-					source_man* sources = (source_man*)data;
-					*out = sources->source(idx)->cname();
-					return true;
-				};
-				if (ImGui::ListBox("##src", &m_selectedSourceIdx, get_name, m_mgr, m_mgr->source_count(), height / ImGui::GetTextLineHeightWithSpacing())) {
-					m_source = m_mgr->source(m_selectedSourceIdx);
+			ImVec2 cr_mn = ImGui::GetWindowContentRegionMin();
+			ImVec2 cr_mx = ImGui::GetWindowContentRegionMax();
+			ImVec2 cr_sz = ImVec2(cr_mx.x - cr_mn.x, cr_mx.y - cr_mn.y);
+
+			f32 list_width = 250.0f;		
+			ImVec2 imgSize = ImVec2(cr_sz.x - list_width, (cr_sz.x - list_width) * 0.55384615384f);
+			ImVec2 keyframe_editor_size = ImVec2(cr_sz.x, cr_sz.y - imgSize.y);
+			ImGui::ListBoxHeader("##src", ImVec2(list_width, imgSize.y));
+			for (u8 s = 0;s < m_mgr->source_count();s++) {
+				auto src = m_mgr->source(s);
+				bool selected = m_selectedSourceIdx == s;
+				if (ImGui::Selectable(src->cname(), &selected) && !selected) {
+					m_selectedSourceIdx = s;
+					m_source = src;
 					m_audio->stop();
 					m_audio->buffer(m_source->audio());
 					m_audio->play();
@@ -120,17 +121,13 @@ namespace rosen {
 					m_source->save_bones();
 					init_keyframe_data();
 				}
+			}
+			ImGui::ListBoxFooter();
 
 
-				ImGui::PopItemWidth();
-				ImGui::NextColumn();
-				width = ImGui::GetColumnWidth() - 10.0f;
-				ImGui::PushItemWidth(width);
-
-
-				ImVec2 imgSize = ImVec2(width, width * 0.55384615384f);
-				if (m_audio->isPlaying()) m_playPos = m_audio->playPosition();
-				ImGui::BeginChild("##sk_im", imgSize, false, ImGuiWindowFlags_NoMove);
+			if (m_audio->isPlaying()) m_playPos = m_audio->playPosition();
+			ImGui::SetCursorPos(ImVec2(cr_mn.x + list_width, cr_mn.y));
+			ImGui::BeginChild("##sk_im", imgSize, false, ImGuiWindowFlags_NoMove);
 				auto dl = ImGui::GetWindowDrawList();
 				ImVec2 windowTL = ImGui::GetWindowPos();
 				ImGui::Image((void*)textureId(m_texture), imgSize);
@@ -197,64 +194,32 @@ namespace rosen {
 						}
 					}
 				}
-
-				ImGui::EndChild();
-
-				if (ImGui::Button(m_audio->isPlaying() ? "Pause" : "Play")) {
-					if (m_audio->isPlaying()) m_audio->pause();
-					else m_audio->play();
-				}
-
-				f32 pitch = m_audio->pitch();
-				if (ImGui::DragFloat("pitch", &pitch, 0.01f)) m_audio->setPitch(pitch);
-
-				bool changed = false;
-				if (ImGui::SliderFloat("##times0", &m_playPos, 0.0f, m_audio->duration())) {
-					m_audio->setPlayPosition(m_playPos);
-					if (!m_audio->isPlaying()) m_source->frame(m_playPos, m_texture);
-				}
-
-				f32 offset = 0.0f;
-				if (ImGui::DragFloat("##times1", &offset, 0.001f, -1.0f, 1.0f)) {
-					m_audio->setPlayPosition(m_playPos + offset);
-					if (!m_audio->isPlaying()) m_source->frame(m_playPos + offset, m_texture);
-				}
-
-				ImGui::PopItemWidth();
-			}
 			ImGui::EndChild();
+			ImGui::SetCursorPos(ImVec2(cr_mn.x, cr_mn.y + imgSize.y));
+
 			/*
-			ImGui::BeginChild("##sk_bot", ImVec2(ImGui::GetWindowContentRegionWidth(), 200.0f), true);
-			{
-				auto dl = ImGui::GetWindowDrawList();
-				ImVec2 windowTL = ImGui::GetWindowPos();
-				f32 width = ImGui::GetWindowContentRegionWidth();
-				f32 dur = m_audio->duration();
-				
-				ImVec2 cp = ImGui::GetCursorPos();
-				f32 spos = cp.x;
-				cp.x += windowTL.x;
-				cp.y += windowTL.y;
-
-				auto ttopx = [width, spos, dur](f32 t) { return (width - spos) * (t / dur); };
-				dl->AddLine(
-					ImVec2(cp.x + ttopx(m_playPos), cp.y),
-					ImVec2(cp.x + ttopx(m_playPos), cp.y + ImGui::GetWindowHeight()),
-					ImColor(0.5f, 0.5f, 0.5f, 0.5f)
-				);
-
-				for (u8 b = 0;b < bi_bone_count;b++) {
-					f32 voff = 2.0f + (2.0f * b) + (5.0f * b);
-					
-					for (auto it = m_source->bones[b].frames.begin();it != m_source->bones[b].frames.end();it++) {
-						dl->AddCircle(ImVec2(cp.x + ttopx(it->time) + 2.5f, cp.y + voff + 2.5f), 2.5f, ImColor(0.5f, 0.5f, 0.5f), 3);
-					}
-				}
+			if (ImGui::Button(m_audio->isPlaying() ? "Pause" : "Play")) {
+				if (m_audio->isPlaying()) m_audio->pause();
+				else m_audio->play();
 			}
-			ImGui::EndChild();
+			f32 pitch = m_audio->pitch();
+			if (ImGui::DragFloat("pitch", &pitch, 0.01f)) m_audio->setPitch(pitch);
+
+			bool changed = false;
+			if (ImGui::SliderFloat("##times0", &m_playPos, 0.0f, m_audio->duration())) {
+				m_audio->setPlayPosition(m_playPos);
+				if (!m_audio->isPlaying()) m_source->frame(m_playPos, m_texture);
+			}
+
+			f32 offset = 0.0f;
+			if (ImGui::DragFloat("##times1", &offset, 0.001f, -1.0f, 1.0f)) {
+				m_audio->setPlayPosition(m_playPos + offset);
+				if (!m_audio->isPlaying()) m_source->frame(m_playPos + offset, m_texture);
+			}
 			*/
+
 			m_keyframes->CurrentTime = m_playPos;
-			if (KeyframeEditor(m_keyframes, ImVec2(0.0f, 200.0f))) {
+			if (KeyframeEditor(m_keyframes, keyframe_editor_size)) {
 				for (u32 t = 0;t < m_keyframes->TrackCount();t++) {
 					KeyframeTrack<vec2f>* track = m_keyframes->Track<vec2f>(t);
 					source_content::bone* bone = (source_content::bone*)track->user_pointer;
