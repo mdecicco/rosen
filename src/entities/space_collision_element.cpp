@@ -30,7 +30,6 @@ namespace rosen {
 	}
 
 	void space_collision_element_entity::willBeDestroyed() {
-		physics->destroy();
 	}
 
 	void space_collision_element_entity::belowFrequencyWarning(f32 percentLessThanDesired, f32 desiredFreq, f32 timeSpentLowerThanDesired) {

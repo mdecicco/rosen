@@ -4,6 +4,7 @@ namespace r2 {
 	class fly_camera_entity;
 	class shader_program;
 	class debug_drawer;
+	class render_buffer;
 };
 
 namespace rosen {
@@ -43,6 +44,8 @@ namespace rosen {
 
 			r2::fly_camera_entity* m_camera;
 			r2::shader_program* m_debugShader;
+			r2::shader_program* m_presentShader;
 			r2::debug_drawer* m_debugDraw;
+			r2::render_buffer* m_rbo;
 	};
 };

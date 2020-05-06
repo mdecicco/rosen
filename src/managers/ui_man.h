@@ -1,8 +1,11 @@
 #pragma once
 #include <r2/config.h>
+#include <r2/utilities/imgui/imgui.h>
+#include <ui/imguizmo.h>
 
 namespace r2 {
 	class scene;
+	class scene_entity;
 };
 
 namespace rosen {
@@ -22,10 +25,15 @@ namespace rosen {
 			void update(r2::f32 frameDt, r2::f32 updateDt);
 			void render();
 
+			r2::scene_entity* selectedEntity;
+			r2::scene_entity* rightClickedEntity;
 		protected:
 			source_man* m_sourceMgr;
 			space_man* m_spaceMgr;
 			r2::scene* m_scene;
+			
+			ImGuizmo::OPERATION m_transformationOperation;
+			ImGuizmo::MODE m_transformationSpace;
 
 			source_snipper* m_snipper;
 			bool m_snipperOpen;

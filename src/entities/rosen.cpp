@@ -38,7 +38,8 @@ namespace rosen {
 		node->material_instance()->uniforms()->uniform_vec3f("shirt_tint", shirt_color_hsv);
 		mesh->set_node(node);
 
-		mesh->set_instance_data(transform->transform);
+		struct i { mat4f t; i32 e; };
+		mesh->set_instance_data<i>({ transform->transform, (i32)id() });
 
 		if (use_physics) {
 			physics_sys::get()->addComponentTo(this);
@@ -72,7 +73,8 @@ namespace rosen {
 
 	void rosen_entity::onUpdate(f32 frameDt, f32 updateDt) {
 		speech()->audio->setPosition(transform->transform * vec4f(0.0f, 0.0f, 0.0f, 1.0f));
-		mesh->set_instance_data(transform->transform);
+		struct i { mat4f t; i32 e; };
+		mesh->set_instance_data<i>({ transform->transform, (i32)id() });
 	}
 
 	void rosen_entity::onEvent(event* evt) {

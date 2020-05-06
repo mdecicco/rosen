@@ -174,6 +174,7 @@ namespace rosen {
 			r2::u8 m_currentCamera;
 			r2::mstring m_name;
 			rosen_camera_entity* m_camera;
+			bool m_initialized;
 
 			space_man* m_mgr;
 	};

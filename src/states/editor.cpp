@@ -10,10 +10,8 @@
 #include <r2/utilities/fly_camera.h>
 #include <r2/utilities/debug_drawer.h>
 
-#include <ui/imguizmo.h>
-
 namespace rosen {
-	editor_state::editor_state(source_man* sourceMgr) : state("editor_state", MBtoB(64)) {
+	editor_state::editor_state(source_man* sourceMgr) : state("editor_state", MBtoB(128)) {
 		// This state's memory has not been allocated yet. Any
 		// allocations made here will be either in the global
 		// scope, or the scope of the currently active state.
@@ -53,6 +51,7 @@ namespace rosen {
 
 		m_spaces = new space_man(getScene());
 		m_ui = new ui_man(m_sources, m_spaces, getScene());
+		m_presentShader = getScene()->load_shader("./resources/shader/present_rt.glsl", "present_shader");
 		m_debugShader = getScene()->load_shader("./resources/shader/debug.glsl", "debug_shader");
 		m_debugDraw = new debug_drawer(getScene(), m_debugShader, 131072 * 2, 8192 * 3);
 		m_physicsDraw = new physics_drawer(m_debugDraw);
@@ -66,6 +65,17 @@ namespace rosen {
 		m_camera = new fly_camera_entity();
 
 		getScene()->clearColor = vec4f(0, 0, 0, 1.0f);
+		
+		m_rbo = getScene()->create_render_target();
+		m_rbo->set_depth_mode(rbdm_24_bit);
+		texture_buffer* color = getScene()->create_texture();
+		vec2f wsz = r2engine::get()->window()->get_size();
+		color->create(wsz.x, wsz.y, 3, tt_unsigned_byte);
+		m_rbo->attach(color);
+		texture_buffer* eid = getScene()->create_texture();
+		eid->create(wsz.x, wsz.y, 1, tt_unsigned_int);
+		m_rbo->attach(eid);
+		getScene()->set_render_target(m_rbo);
 	}
 
 	void editor_state::becameActive() {
@@ -121,11 +131,13 @@ namespace rosen {
 		if (space) space->update(updateDt);
 	}
 
+	inline GLuint textureId(texture_buffer* tex) {
+		return ((gl_render_driver*)r2engine::renderer()->driver())->get_texture_id(tex);
+	}
+
 	void editor_state::onRender() {
-		ImGuizmo::BeginFrame();
-		ImGuizmo::Enable(true);
-		ImGuiIO& io = ImGui::GetIO();
-		ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+		r2engine::renderer()->driver()->clear_framebuffer(vec4f(0.0f, 0.0f, 0.0f, 0.0f), true);
+		r2engine::renderer()->driver()->present_texture(m_rbo->attachment(0), m_presentShader);
 
 		scene_entity* camera = getScene()->camera;
 		if (camera) r2engine::audio()->setListener(glm::inverse(camera->transform->transform));
@@ -135,6 +147,23 @@ namespace rosen {
 		char title[128] = { 0 };
 		snprintf(title, 128, "Rosen | %6.2f FPS | %8s / %8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
 		glfwSetWindowTitle(window, title);
+
+		if (!ImGui::GetIO().WantCaptureMouse) {
+			if (ImGui::IsMouseClicked(0)) {
+				u32 entityId = 0;
+				ImVec2 mp = ImGui::GetMousePos();
+				m_rbo->fetch_pixel(mp.x, mp.y, 1, &entityId, sizeof(u32));
+				if (entityId) m_ui->selectedEntity = r2engine::entity(entityId);
+				else m_ui->selectedEntity = nullptr;
+			}
+			else if (ImGui::IsMouseClicked(1)) {
+				u32 entityId = 0;
+				ImVec2 mp = ImGui::GetMousePos();
+				m_rbo->fetch_pixel(mp.x, mp.y, 1, &entityId, sizeof(u32));
+				if (entityId) m_ui->rightClickedEntity = r2engine::entity(entityId);
+				else m_ui->rightClickedEntity = nullptr;
+			}
+		}
 
 		m_debugDraw->begin();
 
@@ -146,15 +175,6 @@ namespace rosen {
 		m_debugDraw->line(vec3f(0, 0, 0), vec3f(0, 100, 0), vec4f(0, 1, 0, 1));
 		m_debugDraw->line(vec3f(0, 0, 0), vec3f(0, 0, 100), vec4f(0, 0, 1, 1));
 		
-		static mat4f test(1.0f);
-		if (camera) {
-			mat4f t = camera->transform->transform;
-			mat4f p = camera->camera->projection;
-			ImGuizmo::Manipulate(&t[0][0], &p[0][0], ImGuizmo::TRANSLATE, ImGuizmo::WORLD, &test[0][0]);
-			if (ImGuizmo::IsUsing()) {
-				printf("Transforming...\n");
-			}
-		}
 		m_debugDraw->end();
 	}
 

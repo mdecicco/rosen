@@ -15,6 +15,8 @@ namespace rosen {
 		m_sourceMgr = smgr;
 		m_spaceMgr = spmgr;
 		m_scene = s;
+		selectedEntity = nullptr;
+		rightClickedEntity = nullptr;
 
 		m_snipper = new source_snipper(m_sourceMgr, m_scene);
 		m_snipperOpen = false;
@@ -33,6 +35,13 @@ namespace rosen {
 
 		m_entityEditor = new entity_editor();
 		m_entityEditorOpen = false;
+
+		ImGuizmo::Enable(true);
+		ImGuiIO& io = ImGui::GetIO();
+		ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+
+		m_transformationSpace = ImGuizmo::MODE::WORLD;
+		m_transformationOperation = ImGuizmo::OPERATION::TRANSLATE;
 	}
 
 	ui_man::~ui_man() {
@@ -42,6 +51,7 @@ namespace rosen {
 		delete m_spaceBrowser;
 		delete m_sceneBrowser;
 		delete m_entityEditor;
+		ImGuizmo::Enable(false);
 	}
 
 	void ui_man::update(f32 frameDt, f32 updateDt) {
@@ -54,6 +64,52 @@ namespace rosen {
 	}
 
 	void ui_man::render() {
+		ImGuizmo::BeginFrame();
+
+		if (selectedEntity && selectedEntity->transform) {
+			scene_entity* camera = r2engine::current_scene()->camera;
+			if (camera) {
+				ImGuizmo::Manipulate(
+					&camera->transform->transform[0][0],
+					&camera->camera->projection[0][0],
+					m_transformationOperation,
+					m_transformationSpace,
+					&selectedEntity->transform->transform[0][0]
+				);
+
+				if (ImGuizmo::IsUsing()) {
+				}
+			}
+		}
+
+		if (rightClickedEntity) {
+			if (ImGui::BeginPopupContextVoid("##_eopts")) {
+				ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.5f), "Transform Operation");
+				if (ImGui::Selectable("Translate")) {
+					m_transformationOperation = ImGuizmo::TRANSLATE;
+					rightClickedEntity = nullptr;
+				}
+				if (ImGui::Selectable("Rotate")) {
+					m_transformationOperation = ImGuizmo::ROTATE;
+					rightClickedEntity = nullptr;
+				}
+				if (ImGui::Selectable("Scale")) {
+					m_transformationOperation = ImGuizmo::SCALE;
+					rightClickedEntity = nullptr;
+				}
+				ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.5f), "Transform Space");
+				if (ImGui::Selectable("World")) {
+					m_transformationSpace = ImGuizmo::WORLD;
+					rightClickedEntity = nullptr;
+				}
+				if (ImGui::Selectable("Object")) {
+					m_transformationSpace = ImGuizmo::LOCAL;
+					rightClickedEntity = nullptr;
+				}
+				ImGui::EndPopup();
+			}
+		}
+
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
 		ImGui::SetNextWindowSize(ImVec2(r2engine::get()->window()->get_size().x, 30));
 		ImGuiWindowFlags window_flags = 0

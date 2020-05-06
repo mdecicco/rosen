@@ -5,10 +5,12 @@ layout (location = 1) in vec3 vnorm;
 layout (location = 2) in vec2 vtex;
 layout (location = 3) in mat4 transform;
 layout (location = 7) in mat3 normal_transform;
+layout (location = 10) in uint entity_id;
 
 out vec2 o_tex;
 out vec3 o_norm;
 out vec3 o_pos;
+flat out uint o_entity_id;
 
 layout (std140) uniform u_scene { mat4 view; mat4 projection; mat4 view_proj; } scene;
 
@@ -18,6 +20,7 @@ void main() {
     o_tex = vec2(vtex.x, 1.0 - vtex.y);
     o_norm = normalize(normal_transform * vnorm);
     o_pos = wpos.xyz;
+    o_entity_id = entity_id;
 };
 
 // fragment
@@ -26,6 +29,7 @@ void main() {
 in vec2 o_tex;
 in vec3 o_norm;
 in vec3 o_pos;
+flat in uint o_entity_id;
 
 uniform sampler2D diffuse_tex;
 layout (std140) uniform u_material { vec3 diffuse; } material;
@@ -52,13 +56,19 @@ vec3 calc_light(int index) {
     return vec3(0.0, 0.0, 0.0);
 }
 
-out vec4 frag_color;
+layout (location = 0) out vec3 frag_color;
+layout (location = 1) out uint frag_entity_id;
 
 void main() {
     vec4 diffuse_map = texture(diffuse_tex, o_tex);
     if (diffuse_map.a < 0.05) discard;
 
     vec3 lighting = vec3(0.0, 0.0, 0.0);
-    for (int i = 0;i < u_light_count;i++) lighting += calc_light(i);
-    frag_color = vec4(diffuse_map.rgb * lighting, 1.0);
+    if (u_light_count > 0) {
+        for (int i = 0;i < u_light_count;i++) lighting += calc_light(i);
+    } else {
+        lighting = vec3(1.0, 1.0, 1.0);
+    }
+    frag_color = diffuse_map.rgb * lighting;
+    frag_entity_id = o_entity_id;
 }

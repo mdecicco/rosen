@@ -225,10 +225,11 @@ namespace rosen {
 					source_content::bone* bone = (source_content::bone*)track->user_pointer;
 					bone->frames.clear();
 					for (auto k = track->keyframes.begin();k != track->keyframes.end();k++) {
+						KeyframeBase* kf = *k;
 						bone->frames.push_back({
-							k->time,
+							kf->time,
 							((Keyframe<vec2f>*)&(*k))->value,
-							k->user_pointer != nullptr
+							kf->user_pointer != nullptr
 						});
 					}
 				}

@@ -250,7 +250,7 @@ namespace kf {
 
 					PushClipRect(track_keyframes_tl, track_br, true);
 					for (auto k = t->keyframes.begin();k != t->keyframes.end();k++) {
-						float x = sec_to_x(k->time);
+						float x = sec_to_x((*k)->time);
 						float width = _max(_min(sec_to_x(keyframe_width_in_seconds) - sec_to_x(0.0f), keyframe_max_width_in_pixels), keyframe_min_width_in_pixels);
 						if ((x + width) < track_keyframes_tl.x || x > track_br.x) continue;
 						ImVec2 f_tl = ImVec2(x, track_tl.y + track_padding);
@@ -264,20 +264,21 @@ namespace kf {
 					auto remove_iter = t->keyframes.end();
 					bool found_dragged = false;
 					for (auto k = t->keyframes.begin();k != t->keyframes.end();k++) {
-						float x = sec_to_x(k->time);
+						KeyframeBase* kf = *k;
+						float x = sec_to_x(kf->time);
 						float width = _max(_min(sec_to_x(keyframe_width_in_seconds) - sec_to_x(0.0f), keyframe_max_width_in_pixels), keyframe_min_width_in_pixels);
 						ImVec2 f_tl = ImVec2(x, track_tl.y + track_padding);
 						ImVec2 f_br = ImVec2(x + width, track_br.y - track_padding);
 
 						bool hovering = mp.x > f_tl.x && mp.x < f_br.x && mp.y > f_tl.y && mp.y < f_br.y;
-						if (k->draw_data.context_window_open) {
+						if (kf->draw_data.context_window_open) {
 							if (BeginPopupContextWindow("##_kfe_kctx")) {
 								if (Selectable("Scrub To")) {
-									k->draw_data.context_window_open = false;
-									data->CurrentTime = k->time;
+									kf->draw_data.context_window_open = false;
+									data->CurrentTime = (*k)->time;
 								}
 								if (Selectable("Delete")) {
-									k->draw_data.context_window_open = false;
+									kf->draw_data.context_window_open = false;
 									remove_iter = k;
 									keyframes_modified = true;
 								}
@@ -287,32 +288,32 @@ namespace kf {
 
 						if (hovering && IsMouseClicked(1)) {
 							for (auto ok = t->keyframes.begin();ok != t->keyframes.end();ok++) {
-								ok->draw_data.context_window_open = false;
+								(*ok)->draw_data.context_window_open = false;
 							}
-							k->draw_data.context_window_open = true;
+							kf->draw_data.context_window_open = true;
 						} else if (!hovering && IsMouseClicked(1)) {
-							k->draw_data.context_window_open = false;
+							kf->draw_data.context_window_open = false;
 						}
 
 						if (!IsMouseDown(0)) {
-							if (k->draw_data.dragging) {
+							if (kf->draw_data.dragging) {
 								move_iter = k;
-								k->draw_data.dragging = false;
+								kf->draw_data.dragging = false;
 								keyframes_modified = true;
 							}
 						} else {
-							if (k->draw_data.dragging) {
-								float ds = x_to_sec(mp.x) - k->draw_data.last_drag_sec;
-								k->draw_data.last_drag_sec = x_to_sec(mp.x);
-								k->time += ds;
-								if (k->time < 0.0f) k->time = 0.0f;
-								else if (k->time > data->Duration) k->time = data->Duration;
+							if ((*k)->draw_data.dragging) {
+								float ds = x_to_sec(mp.x) - kf->draw_data.last_drag_sec;
+								kf->draw_data.last_drag_sec = x_to_sec(mp.x);
+								kf->time += ds;
+								if (kf->time < 0.0f) kf->time = 0.0f;
+								else if (kf->time > data->Duration) kf->time = data->Duration;
 								keyframes_modified = true;
 							}
 
 							if (!found_dragged && hovering && IsMouseClicked(0)) {
-								k->draw_data.dragging = true;
-								k->draw_data.last_drag_sec = x_to_sec(mp.x);
+								kf->draw_data.dragging = true;
+								kf->draw_data.last_drag_sec = x_to_sec(mp.x);
 								found_dragged = true;
 							}
 						}
@@ -321,12 +322,13 @@ namespace kf {
 					if (move_iter != t->keyframes.end()) {
 						bool found_place = false;
 						for (auto nk = t->keyframes.begin();nk != t->keyframes.end();nk++) {
-							if (nk->time > move_iter->time + 0.0001f) {
+							if ((*nk)->time > (*move_iter)->time + 0.0001f) {
 								t->keyframes.splice(nk, t->keyframes, move_iter);
 								found_place = true;
 								break;
-							} else if (nk != move_iter && nk->time < move_iter->time + 0.0001f && nk->time > move_iter->time - 0.0001f) {
+							} else if (nk != move_iter && (*nk)->time < (*move_iter)->time + 0.0001f && (*nk)->time > (*move_iter)->time - 0.0001f) {
 								t->keyframes.splice(nk, t->keyframes, move_iter);
+								delete *nk;
 								t->keyframes.erase(nk);
 								found_place = true;
 								break;
@@ -337,6 +339,7 @@ namespace kf {
 					}
 
 					if (remove_iter != t->keyframes.end()) {
+						delete *remove_iter;
 						t->keyframes.erase(remove_iter);
 					}
 				}

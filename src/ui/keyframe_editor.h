@@ -26,7 +26,7 @@ namespace kf {
 		virtual ~KeyframeTrackBase() { }
 		std::string name;
 		ImColor color;
-		std::list<KeyframeBase> keyframes;
+		std::list<KeyframeBase*> keyframes;
 		void* user_pointer;
 	};
 
@@ -41,18 +41,18 @@ namespace kf {
 			for (auto i = keyframes.begin();i != keyframes.end();i++) {
 				auto n = std::next(i);
 				if (i->time <= time) {
-					Keyframe<T>& f = dynamic_cast<Keyframe<T>&>(*i);
-					if (n == keyframes.end()) return f.value;
+					Keyframe<T>* f = (Keyframe<T>*)*i;
+					if (n == keyframes.end()) return f->value;
 					else {
-						Keyframe<T>& nf = dynamic_cast<Keyframe<T>&>(*n);
-						return interpolator(f.value, nf.value, (time - f.time) / (nf.time - f.time));
+						Keyframe<T>* nf = (Keyframe<T>*)*n;
+						return interpolator(f->value, nf->value, (time - f->time) / (nf->time - f->time));
 					}
 				}
 			}
 
 			if (keyframes.size() > 0) {
-				Keyframe<T>& kfr = dynamic_cast<Keyframe<T>&>(*keyframes.begin());
-				return interpolator(initial_value, kfr.value, time / kfr.time);
+				Keyframe<T>* kfr = (Keyframe<T>*)*keyframes.begin();
+				return interpolator(initial_value, kfr->value, time / kfr->time);
 			}
 
 			return initial_value;
@@ -60,31 +60,30 @@ namespace kf {
 
 		inline void AddKeyframe(const T& value, float time, void* user_pointer = nullptr) {
 			for (auto i = keyframes.begin();i != keyframes.end();i++) {
-				if (i->time > time + 0.0001f) {
-					Keyframe<T> f;
-					f.time = time;
-					f.value = value;
-					f.draw_data.context_window_open = false;
-					f.draw_data.dragging = false;
-					f.user_pointer = user_pointer;
+				Keyframe<T>* kf = (Keyframe<T>*)*i;
+				if (kf->time > time + 0.0001f) {
+					Keyframe<T>* f = new Keyframe<T>;
+					f->time = time;
+					f->value = value;
+					f->draw_data.context_window_open = false;
+					f->draw_data.dragging = false;
+					f->user_pointer = user_pointer;
 					keyframes.insert(i, f);
 					return;
-				} else if (i->time < time + 0.0001f && i->time > time - 0.0001f) {
-					KeyframeBase* kfr = &(*i);
-					kfr->user_pointer = user_pointer;
-					((Keyframe<T>*)kfr)->value = value;
+				} else if (kf->time < time + 0.0001f && kf->time > time - 0.0001f) {
+					kf->user_pointer = user_pointer;
+					kf->value = value;
 					return;
 				}
 			}
 
-			Keyframe<T> f;
-			f.time = time;
-			f.user_pointer = user_pointer;
-			f.draw_data.context_window_open = false;
-			f.draw_data.dragging = false;
+			Keyframe<T>* f = new Keyframe<T>;
+			f->time = time;
+			f->value = value;
+			f->user_pointer = user_pointer;
+			f->draw_data.context_window_open = false;
+			f->draw_data.dragging = false;
 			keyframes.push_back(f);
-			Keyframe<T>* back = ((Keyframe<T>*)(&keyframes.back()));
-			back->value = value;
 		}
 	};
 

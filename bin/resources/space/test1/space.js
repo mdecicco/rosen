@@ -7,8 +7,8 @@ class TestSpace {
 	
 	initialize () {
 		engine.log('init');
-		this.box = this.get_element('chair364');
-		this.box.set_update_frequency(60.0);
+		this.chair = this.get_element('chair364');
+		this.chair.set_update_frequency(60.0);
 	}
 	
 	deinitialize () {
@@ -18,6 +18,6 @@ class TestSpace {
 	update (dt) {
 		this.time += dt;
 		const transform = Transform3D.rotationY(this.time * 10.0);
-		this.box.transform = transform;
+		this.chair.transform = transform;
 	}
 };

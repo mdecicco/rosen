@@ -22,7 +22,8 @@ namespace rosen {
 		lighting->linearAttenuation = m_initial_props.linearAtt;
 		lighting->quadraticAttenuation = m_initial_props.quadraticAtt;
 
-		setUpdateFrequency(60.0f);
+		//setUpdateFrequency(60.0f);
+		stop_periodic_updates();
 	}
 
 	void space_light_element_entity::onUpdate(f32 frameDt, f32 updateDt) {

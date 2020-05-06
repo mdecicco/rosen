@@ -3,10 +3,12 @@
 layout (location = 0) in vec3 vpos;
 layout (location = 1) in vec2 vtex;
 layout (location = 2) in mat4 transform;
+layout (location = 6) in uint entity_id;
 
 out vec2 o_tex;
 out vec3 o_shirt_color;
 out vec3 o_pos;
+flat out uint o_entity_id;
 
 layout (std140) uniform u_scene { mat4 transform; mat4 projection; mat4 view_proj; } scene;
 layout (std140) uniform u_model { mat4 transform; mat4 normal_transform; } model;
@@ -24,6 +26,7 @@ void main() {
     o_tex = vtex;
     o_shirt_color = hsv(material.shirt_tint);
     o_pos = wpos.xyz;
+    o_entity_id = entity_id;
 };
 
 // fragment
@@ -32,6 +35,7 @@ void main() {
 in vec2 o_tex;
 in vec3 o_shirt_color;
 in vec3 o_pos;
+flat in uint o_entity_id;
 
 uniform sampler2D tex;
 uniform int u_light_count;
@@ -54,7 +58,8 @@ vec3 calc_light(int index) {
     return vec3(0.0, 0.0, 0.0);
 }
 
-out vec4 frag_color;
+layout (location = 0) out vec3 frag_color;
+layout (location = 1) out uint frag_entity_id;
 
 bool similar(vec3 color, vec3 test, float epsilon) {
     return all(greaterThanEqual(color, test - epsilon)) && all(lessThanEqual(color, test + epsilon));
@@ -104,5 +109,6 @@ vec3 base_color(vec2 texcoord) {
 void main() {
     vec3 lighting = vec3(0.0, 0.0, 0.0);
     for (int i = 0;i < u_light_count;i++) lighting += calc_light(i);
-    frag_color = vec4(base_color(o_tex) * lighting, 1.0);
+    frag_color = base_color(o_tex) * lighting;
+    frag_entity_id = o_entity_id;
 }

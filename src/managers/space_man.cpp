@@ -81,6 +81,7 @@ namespace rosen {
 		m_mgr = mgr;
 		m_name = space_name;
 		m_camera = nullptr;
+		m_initialized = false;
 	}
 
 	rosen_space::~rosen_space() {
@@ -88,6 +89,7 @@ namespace rosen {
 	}
 
 	bool rosen_space::load() {
+		m_initialized = false;
 		m_camera = new rosen_camera_entity(m_name + "_camera");
 
 		scene_graph* sg = nullptr;
@@ -99,6 +101,11 @@ namespace rosen {
 		}
 		if (!sg) return false;
 
+		struct id {
+			mat4f transform;
+			mat3f normal_transform;
+			i32 entity_id;
+		} initial = { mat4f(1.0f), mat3f(1.0f), 0 };
 		for (u32 i = 0;i < sg->mesh_count;i++) {
 			mesh_construction_data mcd(m_mgr->get_vfmt(), it_unsigned_short, m_mgr->get_ifmt());
 			mcd.set_max_vertex_count(sg->meshes[i].vertex_count);
@@ -106,11 +113,7 @@ namespace rosen {
 			mcd.set_max_instance_count(sg->meshes[i].instance_count);
 			mcd.append_index_data(sg->meshes[i].indices, sg->meshes[i].index_count);
 			mcd.append_vertex_data(sg->meshes[i].vertices, sg->meshes[i].vertex_count);
-			struct instance_data {
-				mat4f transform;
-				mat3f normal_transform;
-			} initial = { mat4f(1.0f), mat3f(1.0f) };
-			for (size_t in = 0;in < sg->meshes[i].instance_count;in++) mcd.append_instance<instance_data>(initial);
+			for (size_t in = 0;in < sg->meshes[i].instance_count;in++) mcd.append_instance<id>(initial);
 
 			render_node* node = m_mgr->get_scene()->add_mesh(&mcd);
 			node_material_instance* material = m_mgr->get_element_material()->instantiate(m_mgr->get_scene());
@@ -177,7 +180,7 @@ namespace rosen {
 						sg->nodes[i].light.constantAttenuation,
 						sg->nodes[i].light.linearAttenuation,
 						sg->nodes[i].light.quadraticAttenuation
-						}));
+					}));
 					break;
 				}
 				case nt_camera: {
@@ -186,7 +189,9 @@ namespace rosen {
 					break;
 				}
 				case nt_collision: {
-					m_colliders.push(new space_collision_element_entity(name, sg->nodes[i].transform, *m_shapes[sg->nodes[i].collision.collision_mesh_idx]));
+					u32 shape_idx = sg->nodes[i].collision.collision_mesh_idx;
+					btCollisionShape** shape = m_shapes[shape_idx];
+					m_colliders.push(new space_collision_element_entity(name, sg->nodes[i].transform, *shape));
 					break;
 				}
 				case nt_pointOfInterest: {
@@ -237,6 +242,7 @@ namespace rosen {
 	}
 
 	void rosen_space::unload() {
+		m_initialized = false;
 		if (m_camera) m_camera->destroy();
 		m_camera = nullptr;
 
@@ -249,33 +255,38 @@ namespace rosen {
 		m_cameraAngles.clear();
 
 		m_elements.for_each([this](space_element_entity** element) {
-			render_node* node = (*element)->node();
-			delete node->material_instance();
-			this->m_mgr->get_scene()->remove_node(node);
+			(*element)->stop_periodic_updates();
+			(*element)->mesh->release_node();
 			(*element)->destroy();
 			return true;
 		});
 		m_elements.clear();
 
 		m_lights.for_each([this](space_light_element_entity** light) {
+			(*light)->stop_periodic_updates();
 			(*light)->destroy();
 			return true;
 		});
 		m_lights.clear();
 
 		m_colliders.for_each([this](space_collision_element_entity** collider) {
+			(*collider)->stop_periodic_updates();
+			(*collider)->physics->destroy();
 			(*collider)->destroy();
 			return true;
 		});
 		m_colliders.clear();
 
 		m_rosens.for_each([this](rosen_entity** rosen) {
+			(*rosen)->stop_periodic_updates();
+			(*rosen)->mesh->release_node();
 			(*rosen)->destroy();
 			return true;
 		});
 		m_rosens.clear();
 
 		m_rNodes.for_each([this](render_node** node) {
+			delete (*node)->material_instance();
 			m_mgr->get_scene()->remove_node(*node);
 			return true;
 		});
@@ -303,13 +314,15 @@ namespace rosen {
 	}
 
 	void rosen_space::initialize() {
+		if (m_initialized) return;
 		if (!m_scriptObj.IsEmpty() && !m_init.IsEmpty()) {
 			m_init.Get(r2engine::isolate())->Call(r2engine::isolate()->GetCurrentContext(), m_scriptObj.Get(r2engine::isolate()), 0, nullptr);
 		}
+		m_initialized = true;
 	}
 
 	void rosen_space::update(f32 dt) {
-		if (!m_update.IsEmpty()) {
+		if (!m_update.IsEmpty() && m_initialized) {
 			auto isolate = r2engine::isolate();
 			Local<Value> args[] = {
 				v8pp::convert<f32>::to_v8(isolate, dt)
@@ -398,7 +411,8 @@ namespace rosen {
 		mesh->append_index<u8>(2);
 		mesh->append_index<u8>(3);
 
-		mesh->append_instance(transform);
+		struct i { mat4f t; i32 e; };
+		mesh->append_instance<i>({ transform, 0 });
 
 		render_node* node = m_mgr->get_scene()->add_mesh(mesh);
 		node->set_material_instance(m_mgr->get_rosen_material()->instantiate(m_mgr->get_scene()));
@@ -467,7 +481,7 @@ namespace rosen {
 					mstring name(cnode->mName.data, cnode->mName.length);
 
 					if (name.find("collision") != mstring::npos) {
-						mat4f ctransform = get_transform(cnode);
+						mat4f ctransform = get_transform(cnode, true);
 						if (cmeshes.count(cnode->mMeshes[i]) > 0) {
 							cmeshes[cnode->mMeshes[i]]->names.push_back(name);
 							cmeshes[cnode->mMeshes[i]]->transforms.push_back(ctransform);
@@ -493,12 +507,23 @@ namespace rosen {
 									mr->mesh.indices[(f * 3) + 2] = face.mIndices[2];
 								}
 							}
+
 							if (!validFaces) {
 								r2Warn("Mesh has invalid face index count. skipping");
 								delete [] mr->mesh.vertices;
 								delete [] mr->mesh.indices;
 								delete mr;
 								continue;
+							}
+
+							mat4f itransform = get_baked_transform(cnode);
+
+							for (u32 v = 0;v < mesh->mNumVertices;v++) {
+								vec3f pos(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
+								pos = itransform * vec4f(pos, 1.0f);
+								mr->mesh.vertices[v] = {
+									pos.x, pos.z, -pos.y,
+								};
 							}
 
 							mr->names.push_back(name);
@@ -628,7 +653,7 @@ namespace rosen {
 			u32 i = 0;
 			for (auto it = cmeshes.begin();it != cmeshes.end();it++) {
 				collision_meshref* ref = it->second;
-				memcpy(&graph->collision_meshes[i++], &ref->mesh, sizeof(collision_mesh_data));
+				memcpy(&graph->collision_meshes[i], &ref->mesh, sizeof(collision_mesh_data));
 
 				for (u32 e = 0;e < ref->names.size();e++) {
 					graph->nodes[cn].type = nt_collision;
@@ -639,6 +664,8 @@ namespace rosen {
 					graph->nodes[cn].transform = ref->transforms[e];
 					cn++;
 				}
+
+				i++;
 			}
 		}
 		else graph->collision_meshes = nullptr;
@@ -1240,8 +1267,9 @@ namespace rosen {
 		m_vformat->add_attr(vat_vec2f); // texcoord
 
 		m_iformat = new instance_format();
-		m_iformat->add_attr(iat_mat4f, true);
-		m_iformat->add_attr(iat_mat3f);
+		m_iformat->add_attr(iat_mat4f, true); // transform
+		m_iformat->add_attr(iat_mat3f); // normal_transform
+		m_iformat->add_attr(iat_int); // entity id
 
 		m_mformat = new uniform_format();
 		m_mformat->add_attr("diffuse", uat_vec4f);
@@ -1257,7 +1285,8 @@ namespace rosen {
 		m_rosen_vfmt->add_attr(vat_vec2f);
 
 		m_rosen_ifmt = new instance_format();
-		m_rosen_ifmt->add_attr(iat_mat4f, true);
+		m_rosen_ifmt->add_attr(iat_mat4f, true); // transform
+		m_rosen_ifmt->add_attr(iat_int); // entity id
 
 		m_rosen_mformat = new uniform_format();
 		m_rosen_mformat->add_attr("shirt_tint", uat_vec3f);

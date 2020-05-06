@@ -25,7 +25,8 @@ namespace rosen {
 		struct instance_data {
 			mat4f transform;
 			mat3f normal_transform;
-		} instance = { t, glm::inverseTranspose(mat3f(t)) };
+			i32 entity_id;
+		} instance = { t, glm::inverseTranspose(mat3f(t)), (i32)id() };
 		
 		mesh->set_instance_data<instance_data>(instance);
 	}
