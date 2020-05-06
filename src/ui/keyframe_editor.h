@@ -6,7 +6,7 @@
 #include <unordered_map>
 namespace kf {
 	struct KeyframeBase {
-		virtual ~KeyframeBase() { }
+		virtual ~KeyframeBase() { };
 		float time;
 		void* user_pointer;
 
@@ -19,11 +19,12 @@ namespace kf {
 
 	template <typename T>
 	struct Keyframe : public KeyframeBase {
+		virtual ~Keyframe() { }
 		T value;
 	};
 
 	struct KeyframeTrackBase {
-		virtual ~KeyframeTrackBase() { }
+		virtual ~KeyframeTrackBase() { };
 		std::string name;
 		ImColor color;
 		std::list<KeyframeBase*> keyframes;
@@ -32,6 +33,13 @@ namespace kf {
 
 	template <typename T>
 	struct KeyframeTrack : public KeyframeTrackBase {
+		virtual ~KeyframeTrack() {
+			for (auto i = keyframes.begin();i != keyframes.end();i++) {
+				Keyframe<T>* kf = (Keyframe<T>*)*i;
+				delete kf;
+			}
+		}
+
 		typedef T (*InterpolatorCallback)(const T&, const T&, float);
 		static inline T DefaultInterpolator(const T& a, const T& b, float w) { return a + ((b - a) * w); }
 		InterpolatorCallback interpolator;
@@ -45,7 +53,9 @@ namespace kf {
 					if (n == keyframes.end()) return f->value;
 					else {
 						Keyframe<T>* nf = (Keyframe<T>*)*n;
-						return interpolator(f->value, nf->value, (time - f->time) / (nf->time - f->time));
+						if (nf->time >= time) {
+							return interpolator(f->value, nf->value, (time - f->time) / (nf->time - f->time));
+						}
 					}
 				}
 			}

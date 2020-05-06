@@ -62,6 +62,7 @@ namespace rosen {
 								ImGui::PopID();
 							}
 						}
+						ImGui::PopID();
 						ImGui::Unindent(20.0f);
 					}
 
