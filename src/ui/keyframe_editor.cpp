@@ -3,6 +3,33 @@ using namespace ImGui;
 using namespace std;
 
 namespace kf {
+
+	void KeyframeTrackBase::AddKeyframe(float time, void* user_pointer) {
+		for (auto i = keyframes.begin();i != keyframes.end();i++) {
+			KeyframeBase* kf = *i;
+			if (kf->time > time + 0.0001f) {
+				KeyframeBase* f = new KeyframeBase;
+				f->time = time;
+				f->draw_data.context_window_open = false;
+				f->draw_data.dragging = false;
+				f->user_pointer = user_pointer;
+				keyframes.insert(i, f);
+				return;
+			} else if (kf->time < time + 0.0001f && kf->time > time - 0.0001f) {
+				kf->user_pointer = user_pointer;
+				return;
+			}
+		}
+
+		KeyframeBase* f = new KeyframeBase;
+		f->time = time;
+		f->user_pointer = user_pointer;
+		f->draw_data.context_window_open = false;
+		f->draw_data.dragging = false;
+		keyframes.push_back(f);
+	}
+
+
 	KeyframeEditorInterface::KeyframeEditorInterface() {
 		Duration = 1.0f;
 		CurrentTime = 0.0f;
@@ -21,6 +48,15 @@ namespace kf {
 		for (auto i = m_tracks.begin();i != m_tracks.end();i++) {
 			delete i->second;
 		}
+	}
+
+	void KeyframeEditorInterface::AddTrack(const std::string& name, const ImColor& color, void* user_pointer) {
+		KeyframeTrackBase* track = new KeyframeTrackBase;
+		track->name = name;
+		track->color = color;
+		track->user_pointer = user_pointer;
+		m_tracks[name] = track;
+		m_contiguousTracks.push_back(track);
 	}
 
 	void KeyframeEditorInterface::RemoveTrack(const string& track) {
@@ -197,8 +233,12 @@ namespace kf {
 			v_scroll_bar_tl.y += data->draw_data.scroll_y;
 			v_scroll_bar_br.y = v_scroll_bar_tl.y + v_scroll_bar_height;
 
-			float v_scroll_offset = (data->draw_data.scroll_y / (max_v_scroll_bar_height - v_scroll_bar_height));
-			v_scroll_offset *= (track_height * float(track_count)) - (v_scroll_bg_br.y - v_scroll_bg_tl.y);
+			float v_scroll_offset = 0.0f;
+			
+			if (max_v_scroll_bar_height - v_scroll_bar_height > 0.0f) {
+				v_scroll_offset = (data->draw_data.scroll_y / (max_v_scroll_bar_height - v_scroll_bar_height));
+				v_scroll_offset *= (track_height * float(track_count)) - (v_scroll_bg_br.y - v_scroll_bg_tl.y);
+			} else v_scroll_offset = 0.0f;
 
 			string ctstr = time_str(data->CurrentTime);
 			ImVec2 ctsz = CalcTextSize(ctstr.c_str());
