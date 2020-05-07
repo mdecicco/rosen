@@ -1,5 +1,6 @@
 #include <ui/space_browser.h>
 #include <managers/space_man.h>
+#include <managers/ui_man.h>
 #include <entities/space_collision_element.h>
 #include <entities/space_element.h>
 #include <entities/space_light_element.h>
@@ -9,8 +10,9 @@
 using namespace r2;
 
 namespace rosen {
-	space_browser::space_browser(space_man* smgr) {
+	space_browser::space_browser(space_man* smgr, ui_man* umgr) {
 		m_mgr = smgr;
+		m_ui = umgr;
 		m_selectedSpaceIdx = -1;
 	}
 
@@ -42,6 +44,7 @@ namespace rosen {
 						for (u32 j = 0;j < c;j++) {
 							space_light_element_entity* light = space->light(j);
 							if (ImGui::CollapsingHeader(light->name().c_str())) {
+								if (ImGui::IsItemClicked(0)) m_ui->selectedEntity = light;
 								ImGui::PushID(j);
 								light_ui(light);
 								ImGui::PopID();
@@ -73,6 +76,7 @@ namespace rosen {
 						for (u32 j = 0;j < c;j++) {
 							space_element_entity* ele = space->element(j);
 							if (ImGui::CollapsingHeader(ele->name().c_str())) {
+								if (ImGui::IsItemClicked(0)) m_ui->selectedEntity = ele;
 								ImGui::PushID(j);
 								element_ui(ele);
 								ImGui::PopID();
@@ -89,6 +93,7 @@ namespace rosen {
 						for (u32 j = 0;j < c;j++) {
 							space_collision_element_entity* col = space->collider(j);
 							if (ImGui::CollapsingHeader(col->name().c_str())) {
+								if (ImGui::IsItemClicked(0)) m_ui->selectedEntity = col;
 								ImGui::PushID(j);
 								collider_ui(col);
 								ImGui::PopID();

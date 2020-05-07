@@ -3,9 +3,11 @@
 #include <managers/space_man.h>
 
 namespace rosen {
+	class ui_man;
+
 	class space_browser {
 		public:
-			space_browser(space_man* smgr);
+			space_browser(space_man* smgr, ui_man* umgr);
 			~space_browser();
 
 			void update(r2::f32 frameDt, r2::f32 updateDt);
@@ -19,6 +21,7 @@ namespace rosen {
 
 		protected:
 			space_man* m_mgr;
+			ui_man* m_ui;
 
 			// ui params
 			r2::i32 m_selectedSpaceIdx;

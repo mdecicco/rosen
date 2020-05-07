@@ -27,13 +27,13 @@ namespace rosen {
 		m_planner = new speech_planner(m_sourceMgr, m_scene);
 		m_plannerOpen = false;
 
-		m_spaceBrowser = new space_browser(m_spaceMgr);
+		m_spaceBrowser = new space_browser(m_spaceMgr, this);
 		m_spaceBrowserOpen = false;
 
 		m_sceneBrowser = new scene_browser();
 		m_sceneBrowserOpen = false;
 
-		m_entityEditor = new entity_editor();
+		m_entityEditor = new entity_editor(this);
 		m_entityEditorOpen = false;
 
 		ImGuizmo::Enable(true);

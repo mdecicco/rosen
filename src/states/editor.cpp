@@ -138,6 +138,7 @@ namespace rosen {
 	void editor_state::onRender() {
 		r2engine::renderer()->driver()->clear_framebuffer(vec4f(0.0f, 0.0f, 0.0f, 0.0f), true);
 		r2engine::renderer()->driver()->present_texture(m_rbo->attachment(0), m_presentShader);
+		m_debugDraw->begin();
 
 		scene_entity* camera = getScene()->camera;
 		if (camera) r2engine::audio()->setListener(glm::inverse(camera->transform->transform));
@@ -145,7 +146,7 @@ namespace rosen {
 
 		GLFWwindow* window = *r2engine::get()->window();
 		char title[128] = { 0 };
-		snprintf(title, 128, "Rosen | %6.2f FPS | %8s / %8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
+		snprintf(title, 128, "Rosen | %8.2f FPS | %.8s / %.8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
 		glfwSetWindowTitle(window, title);
 
 		if (!ImGui::GetIO().WantCaptureMouse) {
@@ -165,12 +166,13 @@ namespace rosen {
 			}
 		}
 
-		m_debugDraw->begin();
 
+		/*
 		auto& ps = physics_sys::get()->physState();
 		ps.enable();
 		ps->world->debugDrawWorld();
 		ps.disable();
+		*/
 		m_debugDraw->line(vec3f(0, 0, 0), vec3f(100, 0, 0), vec4f(1, 0, 0, 1));
 		m_debugDraw->line(vec3f(0, 0, 0), vec3f(0, 100, 0), vec4f(0, 1, 0, 1));
 		m_debugDraw->line(vec3f(0, 0, 0), vec3f(0, 0, 100), vec4f(0, 0, 1, 1));
