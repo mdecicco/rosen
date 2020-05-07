@@ -1,5 +1,6 @@
 #include <ui/entity_editor.h>
 #include <managers/ui_man.h>
+#include <ui/keyframe_editor.h>
 
 #include <r2/engine.h>
 using namespace r2;
@@ -26,6 +27,8 @@ namespace rosen {
 		if (e != m_last_entity) {
 			m_selectedComponent = 0;
 			m_last_entity = e;
+			destroy_entity_data();
+			init_entity_data();
 		}
 
 		Begin((m_mgr->selectedEntity->name() + "##_eew").c_str(), isOpen);
@@ -145,5 +148,68 @@ namespace rosen {
 	}
 
 	void entity_editor::render_animation_ui(const ImVec2& size) {
+		if (m_entityAnims.size() == 0) {
+			Text("No animations");
+			return;
+		} else {
+			kf::KeyframeEditorInterface* kfe = m_entityAnims[m_selectedAnimation];
+			animation_group* anim = *m_last_entity->animation->animations[m_selectedAnimation];
+
+			kfe->CurrentTime = anim->current_time();
+			if (Button(anim->playing() ? "Pause" : "Play")) {
+				if (anim->playing()) anim->pause();
+				else anim->play();
+			}
+
+			bool loops = anim->loops();
+			SameLine(10.0f);
+			if (Checkbox("Loops", &loops)) anim->loops(loops);
+
+			if (kf::KeyframeEditor(kfe, ImVec2(size.x, size.y - 20.0f))) {
+				for (u32 i = 0;i < kfe->TrackCount();i++) {
+					kf::KeyframeTrackBase* track = kfe->Track(i);
+					animation_track_base* a_track = (animation_track_base*)track->user_pointer;
+					a_track->keyframes.clear();
+					for (auto k = track->keyframes.begin();k != track->keyframes.end();k++) {
+						keyframe_base* kb = (keyframe_base*)(*k)->user_pointer;
+						kb->time = (*k)->time;
+						a_track->keyframes.push_back(kb);
+					}
+					a_track->last_keyframe = a_track->keyframes.end();
+					a_track->last_time = 0.0f;
+				}
+			}
+
+			anim->set_time(kfe->CurrentTime);
+		}
+	}
+
+	void entity_editor::init_entity_data() {
+		if (!m_last_entity) return;
+		animation_component* anim = m_last_entity->animation.get();
+		if (anim) {
+			m_selectedAnimation = 0;
+			anim->animations.for_each([this](animation_group** _anim) {
+				animation_group* anim = *_anim;
+				kf::KeyframeEditorInterface* kei = new kf::KeyframeEditorInterface();
+				kei->Duration = anim->duration();
+
+				for (u32 i = 0;i < anim->track_count();i++) {
+					animation_track_base* track = anim->track(i);
+					kei->AddTrack(track->name, ImColor(1.0f, 1.0f, 1.0f, 0.7f), track);
+					kf::KeyframeTrackBase* ke_track = kei->Track(i);
+					for (auto it = track->keyframes.begin();it != track->keyframes.end();it++) {
+						ke_track->AddKeyframe((*it)->time, *it);
+					}
+				}
+
+				m_entityAnims.push_back(kei);
+				return true;
+			});
+		}
+	}
+
+	void entity_editor::destroy_entity_data() {
+		for (auto it = m_entityAnims.begin();it != m_entityAnims.end();it++) delete *it;
 	}
 };

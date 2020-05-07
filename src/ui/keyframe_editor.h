@@ -25,6 +25,9 @@ namespace kf {
 
 	struct KeyframeTrackBase {
 		virtual ~KeyframeTrackBase() { };
+
+		void AddKeyframe(float time, void* user_pointer);
+
 		std::string name;
 		ImColor color;
 		std::list<KeyframeBase*> keyframes;
@@ -113,6 +116,8 @@ namespace kf {
 				m_tracks[name] = track;
 				m_contiguousTracks.push_back(track);
 			}
+
+			void AddTrack(const std::string& name, const ImColor& color = ImColor(1.0f, 1.0f, 1.0f), void* user_pointer = nullptr);
 
 			void RemoveTrack(const std::string& name);
 
