@@ -14,7 +14,7 @@ namespace rosen {
 				r2::f32 quadraticAtt;
 			};
 
-			space_light_element_entity(const r2::mstring& name, const light_props& props);
+			space_light_element_entity(const r2::mstring& name, const light_props& props, const r2::mstring& animFile);
 
 			~space_light_element_entity();
 
@@ -29,6 +29,7 @@ namespace rosen {
 			virtual void belowFrequencyWarning(r2::f32 percentLessThanDesired, r2::f32 desiredFreq, r2::f32 timeSpentLowerThanDesired);
 
 		protected:
+			r2::mstring m_animFile;
 			light_props m_initial_props;
 	};
 };

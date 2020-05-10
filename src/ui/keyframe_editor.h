@@ -131,13 +131,19 @@ namespace kf {
 			template <typename T>
 			inline KeyframeTrack<T>* Track(const std::string& track) {
 				auto it = m_tracks.find(track);
-				assert(it != m_tracks.end());
-				return ((KeyframeTrack<T>*)it->second);
+				if (it != m_tracks.end()) return ((KeyframeTrack<T>*)it->second);
+				return nullptr;
 			}
 
 			template <typename T>
 			inline KeyframeTrack<T>* Track(size_t idx) {
 				return (KeyframeTrack<T>*)m_contiguousTracks[idx];
+			}
+			
+			inline KeyframeTrackBase* Track(const std::string& track) {
+				auto it = m_tracks.find(track);
+				if (it != m_tracks.end()) return it->second;
+				return nullptr;
 			}
 
 			inline KeyframeTrackBase* Track(size_t idx) {

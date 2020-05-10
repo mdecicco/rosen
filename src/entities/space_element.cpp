@@ -3,7 +3,44 @@
 using namespace r2;
 
 namespace rosen {
-	space_element_entity::space_element_entity(const mstring& name, render_node* node, const mat4f& transform) : scene_entity(name), m_node(node), m_initialTransform(transform) {
+	inline bool load_anim(const mstring& path, scene_entity* entity) {
+		if (r2engine::files()->exists(path)) {
+			data_container* file = r2engine::files()->open(path, DM_BINARY, entity->name() + " (animation)");
+			if (file) {
+				char hdr[4] = { 0 };
+				if (!file->read_data(hdr, 4)) {
+					r2engine::files()->destroy(file);
+					return false;
+				}
+
+				if (hdr[0] != 'A' || hdr[1] != 'N' || hdr[2] != 'I' || hdr[3] != 'M') {
+					r2Error("'%s' is not a valid .anim file", path.c_str());
+					r2engine::files()->destroy(file);
+					return false;
+				}
+
+				u8 anim_count = 0;
+				if (!file->read(anim_count)) {
+					r2engine::files()->destroy(file);
+					return false;
+				}
+
+				for (u8 i = 0;i < anim_count;i++) {
+					try {
+						entity->animation->animations.push(new animation_group(file, entity));
+					} catch (std::exception& e) {
+						r2Error(e.what());
+					}
+				}
+
+				r2engine::files()->destroy(file);
+			}
+		}
+	}
+
+	space_element_entity::space_element_entity(const mstring& name, render_node* node, const mat4f& transform, const mstring& animFile)
+		: scene_entity(name), m_node(node), m_initialTransform(transform), m_animFile(animFile)
+	{
 	}
 
 	space_element_entity::~space_element_entity() {
@@ -17,22 +54,7 @@ namespace rosen {
 		mesh->set_node(m_node);
 
 		animation_sys::get()->addComponentTo(this);
-		animation_group* a = new animation_group("ball", 5.0f, true);
-		a->add_track<mat4f>("bounce", [](void* entity) {
-			scene_entity* e = (scene_entity*)entity;
-			if (!e->transform) return (mat4f*)nullptr;
-			return &e->transform->transform;
-		}, [](const mat4f& a, const mat4f& b, f32 w) {
-			return a + ((b - a) * interpolate::easeInOutCubic(w));
-		}, this);
-		a->set("bounce", glm::translate(transform->transform, vec3f(0.0f, -5.0f, 0.0f)), 1.0f);
-		a->set("bounce", glm::translate(transform->transform, vec3f(0.0f, 2.5f, 0.0f)), 2.0f);
-		a->set("bounce", glm::translate(transform->transform, vec3f(0.0f, -2.5f, 0.0f)), 3.0f);
-		a->set("bounce", glm::translate(transform->transform, vec3f(0.0f, 5.0f, 0.0f)), 4.0f);
-		a->set("bounce", transform->transform, 5.0f);
-		a->loops(true);
-		a->play();
-		animation->animations.push(a);
+		load_anim(m_animFile, this);
 
 		setUpdateFrequency(60.0f);
 	}

@@ -30,10 +30,10 @@ namespace rosen {
 		m_spaceBrowser = new space_browser(m_spaceMgr, this);
 		m_spaceBrowserOpen = false;
 
-		m_sceneBrowser = new scene_browser();
+		m_sceneBrowser = new scene_browser(this);
 		m_sceneBrowserOpen = false;
 
-		m_entityEditor = new entity_editor(this);
+		m_entityEditor = new entity_editor(m_spaceMgr, this);
 		m_entityEditorOpen = false;
 
 		ImGuizmo::Enable(true);

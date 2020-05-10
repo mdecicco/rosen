@@ -1,5 +1,6 @@
 #include <ui/entity_editor.h>
 #include <managers/ui_man.h>
+#include <managers/space_man.h>
 #include <ui/keyframe_editor.h>
 
 #include <r2/engine.h>
@@ -9,10 +10,11 @@ using namespace r2;
 using namespace ImGui;
 
 namespace rosen {
-	entity_editor::entity_editor(ui_man* mgr) {
+	entity_editor::entity_editor(space_man* smgr, ui_man* mgr) {
 		m_mgr = mgr;
+		m_smgr = smgr;
 		m_last_entity = nullptr;
-		m_selectedComponent = 0;
+		m_selectedAnimation = 0;
 	}
 
 	entity_editor::~entity_editor() {
@@ -25,41 +27,70 @@ namespace rosen {
 		if (!*isOpen || !m_mgr->selectedEntity) return;
 		scene_entity* e = m_mgr->selectedEntity;
 		if (e != m_last_entity) {
-			m_selectedComponent = 0;
 			m_last_entity = e;
 			destroy_entity_data();
 			init_entity_data();
 		}
 
 		Begin((m_mgr->selectedEntity->name() + "##_eew").c_str(), isOpen);
-			ImVec2 cr_min = GetWindowContentRegionMin();
-			ImVec2 cr_max = GetWindowContentRegionMax();
-			ImVec2 cr_tl = GetCursorPos();
+			ImVec2 cr_mn = GetWindowContentRegionMin();
+			ImVec2 cr_mx = GetWindowContentRegionMax();
+			ImVec2 cr_sz = ImVec2(cr_mx.x - cr_mn.x, cr_mx.y - cr_mn.y);
 
-			ListBoxHeader("##_ee_comps", ImVec2(100.0f, cr_max.y - cr_min.y));
-				if (e->transform && Selectable("Transform", m_selectedComponent == 1)) m_selectedComponent = 1;
-				if (e->camera && Selectable("Camera", m_selectedComponent == 2)) m_selectedComponent = 2;
-				if (e->mesh && Selectable("Render", m_selectedComponent == 3)) m_selectedComponent = 3;
-				if (e->physics && Selectable("Physics", m_selectedComponent == 4)) m_selectedComponent = 4;
-				if (e->lighting && Selectable("Lighting", m_selectedComponent == 5)) m_selectedComponent = 5;
-				if (e->animation && Selectable("Animation", m_selectedComponent == 6)) m_selectedComponent = 6;
-			ListBoxFooter();
-
-			SetCursorPos(ImVec2(cr_tl.x + 105.0f, cr_tl.y));
-			PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-			ImVec2 csz = ImVec2((cr_max.x - cr_min.x) - 105.0f, cr_max.y - cr_min.y);
-			BeginChild("##_ee_co", csz, true);
-				switch (m_selectedComponent) {
-					case 1: render_transform_ui(csz); break;
-					case 2: render_camera_ui(csz); break;
-					case 3: render_mesh_ui(csz); break;
-					case 4: render_physics_ui(csz); break;
-					case 5: render_lighting_ui(csz); break;
-					case 6: render_animation_ui(csz); break;
-					default: break;
+			if (CollapsingHeader("Transform")) {
+				if (e->transform) {
+					render_transform_ui(cr_sz);
+				} else {
+					if (Button("Add Transform Component", ImVec2(cr_sz.x, 0.0f))) {
+						transform_sys::get()->addComponentTo(e);
+					}
 				}
-			EndChild();
-			PopStyleVar();
+			}
+			if (CollapsingHeader("Camera")) {
+				if (e->camera) {
+					render_camera_ui(cr_sz);
+				} else {
+					if (Button("Add Camera Component", ImVec2(cr_sz.x, 0.0f))) {
+						camera_sys::get()->addComponentTo(e);
+					}
+				}
+			}
+			if (CollapsingHeader("Mesh")) {
+				if (e->mesh) {
+					render_mesh_ui(cr_sz);
+				} else {
+					if (Button("Add Mesh Component", ImVec2(cr_sz.x, 0.0f))) {
+						mesh_sys::get()->addComponentTo(e);
+					}
+				}
+			}
+			if (CollapsingHeader("Physics")) {
+				if (e->physics) {
+					render_physics_ui(cr_sz);
+				} else {
+					if (Button("Add Physics Component", ImVec2(cr_sz.x, 0.0f))) {
+						physics_sys::get()->addComponentTo(e);
+					}
+				}
+			}
+			if (CollapsingHeader("Lighting")) {
+				if (e->lighting) {
+					render_lighting_ui(cr_sz);
+				} else {
+					if (Button("Add Lighting Component", ImVec2(cr_sz.x, 0.0f))) {
+						lighting_sys::get()->addComponentTo(e);
+					}
+				}
+			}
+			if (CollapsingHeader("Animation")) {
+				if (e->animation) {
+					render_animation_ui(cr_sz);
+				} else {
+					if (Button("Add Animation Component", ImVec2(cr_sz.x, 0.0f))) {
+						animation_sys::get()->addComponentTo(e);
+					}
+				}
+			}
 		End();
 	}
 
@@ -145,6 +176,28 @@ namespace rosen {
 	}
 
 	void entity_editor::render_lighting_ui(const ImVec2& size) {
+		lighting_component* c = m_last_entity->lighting.get();
+		PushItemWidth(200.0f);
+		ImGui::ColorPicker3("Color", &c->color.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_PickerHueBar);
+		PopItemWidth();
+		if (ImGui::DragFloat("Inner Cone", &c->coneInnerAngle, 0.5f, 0.0f, 0.0f, "%.2fº")) {
+			if (c->coneInnerAngle < 0.0f) c->coneInnerAngle = 0.0f;
+			else if (c->coneInnerAngle > c->coneOuterAngle) c->coneOuterAngle = c->coneInnerAngle;
+		}
+		if (ImGui::DragFloat("Outer Cone", &c->coneOuterAngle, 0.5f, 0.0f, 0.0f, "%.2fº")) {
+			if (c->coneOuterAngle < 0.0f) c->coneOuterAngle = 0.0f;
+			else if (c->coneOuterAngle > 180.0f) c->coneOuterAngle = 180.0f;
+			else if (c->coneOuterAngle < c->coneInnerAngle) c->coneInnerAngle = c->coneOuterAngle;
+		}
+		if (ImGui::DragFloat("Constant Att.", &c->constantAttenuation, 0.001f, 0.0f, 0.0f, "%.4f")) {
+			if (c->constantAttenuation < 0.0f) c->constantAttenuation = 0.0f;
+		}
+		if (ImGui::DragFloat("Linear Att.", &c->linearAttenuation, 0.001f, 0.0f, 0.0f, "%.4f")) {
+			if (c->linearAttenuation < 0.0f) c->linearAttenuation = 0.0f;
+		}
+		if (ImGui::DragFloat("Quadratic Att.", &c->quadraticAttenuation, 0.001f, 0.0f, 0.0f, "%.4f")) {
+			if (c->quadraticAttenuation < 0.0f) c->quadraticAttenuation = 0.0f;
+		}
 	}
 
 	void entity_editor::render_animation_ui(const ImVec2& size) {
@@ -152,35 +205,152 @@ namespace rosen {
 			Text("No animations");
 			return;
 		} else {
+			animation_component* comp = m_last_entity->animation.get();
 			kf::KeyframeEditorInterface* kfe = m_entityAnims[m_selectedAnimation];
-			animation_group* anim = *m_last_entity->animation->animations[m_selectedAnimation];
+			animation_group* anim = *comp->animations[m_selectedAnimation]; 
 
-			kfe->CurrentTime = anim->current_time();
+			if (BeginChild("##_ee_ac", ImVec2(0.0f, 150.0f))) {
+				ImVec2 cp = GetCursorPos();
+				ImVec2 c_cr_mn = GetWindowContentRegionMin();
+				ImVec2 c_cr_mx = GetWindowContentRegionMax();
+				ImVec2 controls_size = ImVec2(c_cr_mx.x - c_cr_mn.x, c_cr_mx.y - c_cr_mn.y);
+				if (ListBoxHeader("##_ee_al", ImVec2(100.0f, controls_size.y))) {
+						for (u32 a = 0;a < comp->animations.size();a++) {
+							PushID(a);
+							if (Selectable((*comp->animations[a])->name().c_str(), m_selectedAnimation == a)) {
+								m_selectedAnimation = a;
+								kfe = m_entityAnims[m_selectedAnimation];
+								anim = *comp->animations[m_selectedAnimation];
+							}
+							PopID();
+						}
+					ListBoxFooter();
+				} 
+
+				mvector<mstring> props;
+				m_last_entity->animatable_props(props);
+
+				SetCursorPos(ImVec2(cp.x + 105.0f, cp.y));
+				if (BeginChild("##_ee_al", ImVec2(450.0f, controls_size.y))) {
+					char btn_buf[6] = { 0 };
+					for (u32 p = 0;p < props.size();p++) {
+						bool is_in_anim = anim->track(props[p]) != nullptr;
+						Text(props[p].c_str());
+						if (is_in_anim) {
+							SameLine(450.0f - 160.0f);
+							memset(btn_buf, 0, 6);
+							snprintf(btn_buf, 6, "kf_%d", p);
+							PushID(btn_buf);
+							if (Button("Key", ImVec2(75.0f, 20.0f))) {
+								kfe->Track(props[p])->AddKeyframe(
+									anim->current_time(), 
+									m_last_entity->create_keyframe(props[p], anim, interpolate::itm_easeInOutCubic)
+								);
+							}
+							PopID();
+						}
+
+						SameLine(450.0f - 80.0f);
+						memset(btn_buf, 0, 6);
+						snprintf(btn_buf, 6, "ar_%d", p);
+						PushID(btn_buf);
+						if (Button(is_in_anim ? "Remove" : "Add", ImVec2(75.0f, 20.0f))) {
+							if (is_in_anim) {
+								anim->remove_track(props[p]);
+								kfe->RemoveTrack(props[p]);
+							}
+							else {
+								m_last_entity->animate_prop(props[p], anim);
+								kfe->AddTrack(props[p], ImColor(1.0f, 1.0f, 1.0f, 0.7f), anim->track(props[p]));
+							}
+						}
+						PopID();
+					}
+
+					EndChild();
+				}
+				EndChild();
+			}
+
+			rosen_space* cspace = m_smgr->get_current();
+			if (cspace && Button("Save")) {
+				data_container* out = r2engine::files()->create(DM_BINARY, m_last_entity->name() + ".anim");
+				if (out) {
+					char hdr[4] = { 'A', 'N', 'I', 'M' };
+					bool failed = false;
+					if (failed || !out->write_data(hdr, 4)) failed = true;
+
+					u8 anim_count = comp->animations.size();
+					if (failed || !out->write(anim_count)) failed = true;
+
+					for (u8 i = 0;i < anim_count && !failed;i++) {
+						if (failed || !(*comp->animations[i])->serialize(out)) failed = true;
+					}
+
+					if (!failed) {
+						if (!r2engine::files()->save(out, "./resources/space/" + cspace->name() + "/anim/" + out->name())) {
+							r2Error("Failed to save animation");
+						}
+					}
+
+					r2engine::files()->destroy(out);
+				} else {
+					r2Error("Failed to create output data");
+				}
+			}
+
+			SameLine(0.0f, 10.0f);
 			if (Button(anim->playing() ? "Pause" : "Play")) {
 				if (anim->playing()) anim->pause();
 				else anim->play();
 			}
 
 			bool loops = anim->loops();
-			SameLine(10.0f);
+			SameLine(0.0f, 10.0f);
 			if (Checkbox("Loops", &loops)) anim->loops(loops);
 
-			if (kf::KeyframeEditor(kfe, ImVec2(size.x, size.y - 20.0f))) {
+			f32 dur = anim->duration();
+			SameLine(0.0f, 10.0f);
+			if (DragFloat("Duration", &dur, 0.1f)) {
+				anim->duration(dur);
+				kfe->Duration = anim->duration();
+			}
+
+			kfe->CurrentTime = anim->current_time();
+
+			if (kf::KeyframeEditor(kfe, ImVec2(0.0f, 0.0f))) {
 				for (u32 i = 0;i < kfe->TrackCount();i++) {
 					kf::KeyframeTrackBase* track = kfe->Track(i);
 					animation_track_base* a_track = (animation_track_base*)track->user_pointer;
+					mlist<keyframe_base*> old_keys = a_track->keyframes;
 					a_track->keyframes.clear();
 					for (auto k = track->keyframes.begin();k != track->keyframes.end();k++) {
 						keyframe_base* kb = (keyframe_base*)(*k)->user_pointer;
 						kb->time = (*k)->time;
 						a_track->keyframes.push_back(kb);
 					}
+
+					for (auto ok = old_keys.begin();ok != old_keys.end();ok++) {
+						bool found = false;
+						for (auto nk = a_track->keyframes.begin();nk != a_track->keyframes.end();nk++) {
+							if (*nk == *ok) {
+								found = true;
+								break;
+							}
+						}
+
+						if (!found) delete *ok;
+					}
 					a_track->last_keyframe = a_track->keyframes.end();
 					a_track->last_time = 0.0f;
 				}
 			}
-
-			anim->set_time(kfe->CurrentTime);
+			if (kfe->CurrentTime != anim->current_time()) {
+				anim->set_time(kfe->CurrentTime);
+				anim->play();
+				anim->update(0.0f, m_last_entity);
+				anim->pause();
+			}
 		}
 	}
 
@@ -211,5 +381,6 @@ namespace rosen {
 
 	void entity_editor::destroy_entity_data() {
 		for (auto it = m_entityAnims.begin();it != m_entityAnims.end();it++) delete *it;
+		m_entityAnims.clear();
 	}
 };

@@ -165,9 +165,10 @@ namespace rosen {
 
 		for (u32 i = 0;i < sg->node_count;i++) {
 			mstring name(sg->nodes[i].name, sg->nodes[i].name_len);
+			mstring animFile = "./resources/space/" + m_name + "/anim/" + name + ".anim";
 			switch (sg->nodes[i].type) {
 				case nt_mesh: {
-					m_elements.push(new space_element_entity(name, *m_rNodes[sg->nodes[i].mesh.mesh_idx], sg->nodes[i].transform));
+					m_elements.push(new space_element_entity(name, *m_rNodes[sg->nodes[i].mesh.mesh_idx], sg->nodes[i].transform, animFile));
 					break;
 				}
 				case nt_light: {
@@ -180,7 +181,7 @@ namespace rosen {
 						sg->nodes[i].light.constantAttenuation,
 						sg->nodes[i].light.linearAttenuation,
 						sg->nodes[i].light.quadraticAttenuation
-					}));
+					}, animFile));
 					break;
 				}
 				case nt_camera: {

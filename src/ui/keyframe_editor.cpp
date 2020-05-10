@@ -133,7 +133,7 @@ namespace kf {
 
 		PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(track_margin, track_margin));
 
-		BeginChild("##_kfe", size, true, ImGuiWindowFlags_NoMove);
+		BeginChild("##_kfe", size, false, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse);
 			ImDrawList* dl = GetWindowDrawList();
 			ImVec2 o = GetCursorScreenPos();
 
@@ -144,6 +144,10 @@ namespace kf {
 				if (ts.x > max_track_text_size.x) max_track_text_size.x = ts.x;
 				if (ts.y > max_track_text_size.y) max_track_text_size.y = ts.y;
 			}
+
+			if (max_track_text_size.x == 0.0f) max_track_text_size.x = 100.0f;
+			if (max_track_text_size.y == 0.0f) max_track_text_size.y = 16.0f;
+
 			float track_height = (track_padding * 2.0f) + (track_margin * 2.0f) + max_track_text_size.y;
 			ImVec2 cr_mn = GetWindowContentRegionMin();
 			ImVec2 cr_mx = GetWindowContentRegionMax();
@@ -157,18 +161,18 @@ namespace kf {
 
 			ImVec2 scroll_bg_tl = ImVec2(
 				o.x + max_track_text_size.x + (track_padding * 2.0f) + space_between_name_and_keyframes + track_margin,
-				o.y + (sz.y - scroll_bar_thickness) + (track_margin - 1.0f)
+				o.y + (sz.y - scroll_bar_thickness)
 			);
-			ImVec2 scroll_bg_br = ImVec2(o.x + sz.x - scroll_bar_thickness, o.y + sz.y + (track_margin - 1.0f));
+			ImVec2 scroll_bg_br = ImVec2(o.x + sz.x - scroll_bar_thickness, o.y + sz.y);
 			ImVec2 scroll_bar_tl = ImVec2(scroll_bg_tl.x + scroll_bar_padding, scroll_bg_tl.y + scroll_bar_padding);
 			ImVec2 scroll_bar_br = ImVec2(scroll_bg_br.x - scroll_bar_padding, scroll_bg_br.y - scroll_bar_padding);
 			ImVec2 v_scroll_bg_tl = ImVec2(
-				o.x + (sz.x - scroll_bar_thickness) + track_margin,
+				o.x + (sz.x - scroll_bar_thickness),
 				o.y + track_height
 			);
 			ImVec2 v_scroll_bg_br = ImVec2(
 				v_scroll_bg_tl.x + scroll_bar_thickness,
-				o.y + sz.y - scroll_bar_thickness + track_margin
+				o.y + (sz.y - scroll_bar_thickness)
 			);
 			ImVec2 v_scroll_bar_tl = ImVec2(v_scroll_bg_tl.x + scroll_bar_padding, v_scroll_bg_tl.y + scroll_bar_padding);
 			ImVec2 v_scroll_bar_br = ImVec2(v_scroll_bg_br.x - scroll_bar_padding, v_scroll_bg_br.y - scroll_bar_padding);
@@ -178,7 +182,7 @@ namespace kf {
 				o.y + track_margin
 			);
 			ImVec2 time_bar_br = ImVec2(
-				o.x + sz.x - scroll_bar_thickness,
+				o.x + (sz.x - scroll_bar_thickness) - track_margin,
 				time_bar_tl.y + (track_height - (track_margin * 2.0f))
 			);
 			auto sec_to_x = [time_bar_tl, time_bar_br, data](float t) {
@@ -252,8 +256,9 @@ namespace kf {
 			if (IsRectVisible(time_bar_tl, time_bar_br) && time_bar_br.x > time_bar_tl.x) {
 				dl->AddRectFilled(time_bar_tl, time_bar_br, time_bar_bg_color, 5.0f, ImDrawCornerFlags_Top | ImDrawCornerFlags_BotRight);
 				dl->PushClipRect(time_bar_tl, time_bar_br);
+				float base_x = sec_to_x(0.0f);
 				float increment = 0.01f;
-				while ((sec_to_x(increment) - sec_to_x(0.0f)) < 80.0f) {
+				while ((sec_to_x(increment) - base_x) < 90.0f) {
 					increment *= 2.0f;
 				}
 
@@ -261,8 +266,11 @@ namespace kf {
 					float x = sec_to_x(t);
 					if (x < time_bar_tl.x || x > time_bar_br.x) continue;
 					string tstr = time_str(t);
+					ImVec2 text_size = CalcTextSize(tstr.c_str());
 					dl->AddLine(ImVec2(x, time_bar_tl.y), ImVec2(x, time_bar_br.y), time_bar_tick_color, 1.0f);
-					dl->AddText(ImVec2(x + track_padding, time_bar_tl.y + track_padding), 0xFFFFFFFF, tstr.c_str());
+					if (x + track_padding + text_size.x > time_bar_br.x) {
+						dl->AddText(ImVec2(x - track_padding - text_size.x, time_bar_tl.y + track_padding), ImColor(1.0f, 1.0f, 1.0f, 0.5f), tstr.c_str());
+					} else dl->AddText(ImVec2(x + track_padding, time_bar_tl.y + track_padding), 0xFFFFFFFF, tstr.c_str());
 				}
 				dl->PopClipRect();
 			}
@@ -278,7 +286,7 @@ namespace kf {
 					track_list_tl.y + (track_height * float(i)) - v_scroll_offset
 				);
 				ImVec2 track_br = ImVec2(
-					track_tl.x + sz.x - scroll_bar_thickness - track_margin,
+					o.x + sz.x - scroll_bar_thickness - track_margin,
 					track_tl.y + (track_height - (track_margin * 2.0f))
 				);
 				ImVec2 track_name_br = ImVec2(track_tl.x + max_track_text_size.x + (track_padding * 2.0f), track_br.y);
@@ -295,7 +303,11 @@ namespace kf {
 						if ((x + width) < track_keyframes_tl.x || x > track_br.x) continue;
 						ImVec2 f_tl = ImVec2(x, track_tl.y + track_padding);
 						ImVec2 f_br = ImVec2(x + width, track_br.y - track_padding);
-
+						if (x <= track_br.x && x + width > track_br.x) {
+							f_tl.x = track_br.x - width;
+							f_br.x = track_br.x;
+						}
+						
 						dl->AddRectFilled(f_tl, f_br, t->color);
 					}
 					PopClipRect();
@@ -309,6 +321,10 @@ namespace kf {
 						float width = _max(_min(sec_to_x(keyframe_width_in_seconds) - sec_to_x(0.0f), keyframe_max_width_in_pixels), keyframe_min_width_in_pixels);
 						ImVec2 f_tl = ImVec2(x, track_tl.y + track_padding);
 						ImVec2 f_br = ImVec2(x + width, track_br.y - track_padding);
+						if (x <= track_br.x && x + width > track_br.x) {
+							f_tl.x = track_br.x - width;
+							f_br.x = track_br.x;
+						}
 
 						bool hovering = mp.x > f_tl.x && mp.x < f_br.x && mp.y > f_tl.y && mp.y < f_br.y;
 						if (kf->draw_data.context_window_open) {
