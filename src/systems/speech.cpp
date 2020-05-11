@@ -185,10 +185,10 @@ namespace rosen {
 
 	void speech_system::doUpdate(r2::f32 frameDelta, r2::f32 updateDelta) {
 		scene* cur_scene = r2engine::current_scene();
-		camera_frustum* frustum = nullptr;
+		const camera_frustum* frustum = nullptr;
 		vec3f cam_pos;
 		if (cur_scene && cur_scene->camera) {
-			frustum = &cur_scene->camera->camera->frustum;
+			frustum = &cur_scene->camera->camera->frustum();
 			cam_pos = glm::inverse(cur_scene->camera->transform->transform) * vec4f(0, 0, 0, 1.0f);
 		}
 

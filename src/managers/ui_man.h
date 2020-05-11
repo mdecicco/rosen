@@ -15,6 +15,7 @@ namespace rosen {
 	class space_browser;
 	class scene_browser;
 	class entity_editor;
+	class animation_editor;
 	class source_man;
 	class space_man;
 
@@ -27,6 +28,13 @@ namespace rosen {
 
 			r2::scene_entity* selectedEntity;
 			r2::scene_entity* rightClickedEntity;
+			bool snipperOpen;
+			bool skeletizerOpen;
+			bool plannerOpen;
+			bool spaceBrowserOpen;
+			bool sceneBrowserOpen;
+			bool entityEditorOpen;
+			bool animationEditorOpen;
 		protected:
 			source_man* m_sourceMgr;
 			space_man* m_spaceMgr;
@@ -36,22 +44,12 @@ namespace rosen {
 			ImGuizmo::MODE m_transformationSpace;
 
 			source_snipper* m_snipper;
-			bool m_snipperOpen;
-
 			source_skeletizer* m_skeletizer;
-			bool m_skeletizerOpen;
-
 			speech_planner* m_planner;
-			bool m_plannerOpen;
-
 			space_browser* m_spaceBrowser;
-			bool m_spaceBrowserOpen;
-
 			scene_browser* m_sceneBrowser;
-			bool m_sceneBrowserOpen;
-
 			entity_editor* m_entityEditor;
-			bool m_entityEditorOpen;
+			animation_editor* m_animationEditor;
 	};
 };
 

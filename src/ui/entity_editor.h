@@ -28,17 +28,10 @@ namespace rosen {
 			void render_mesh_ui(const ImVec2& size);
 			void render_physics_ui(const ImVec2& size);
 			void render_lighting_ui(const ImVec2& size);
-			void render_animation_ui(const ImVec2& size);
-
-			void init_entity_data();
-			void destroy_entity_data();
 
 		protected:
 			ui_man* m_mgr;
 			space_man* m_smgr;
 			r2::scene_entity* m_last_entity;
-
-			r2::u8 m_selectedAnimation;
-			std::vector<kf::KeyframeEditorInterface*> m_entityAnims;
 	};
 };

@@ -5,6 +5,7 @@
 #include <ui/space_browser.h>
 #include <ui/scene_browser.h>
 #include <ui/entity_editor.h>
+#include <ui/animation_editor.h>
 
 #include <r2/engine.h>
 
@@ -19,22 +20,25 @@ namespace rosen {
 		rightClickedEntity = nullptr;
 
 		m_snipper = new source_snipper(m_sourceMgr, m_scene);
-		m_snipperOpen = false;
+		snipperOpen = false;
 
 		m_skeletizer = new source_skeletizer(m_sourceMgr, m_scene);
-		m_skeletizerOpen = false;
+		skeletizerOpen = false;
 
 		m_planner = new speech_planner(m_sourceMgr, m_scene);
-		m_plannerOpen = false;
+		plannerOpen = false;
 
 		m_spaceBrowser = new space_browser(m_spaceMgr, this);
-		m_spaceBrowserOpen = false;
+		spaceBrowserOpen = false;
 
 		m_sceneBrowser = new scene_browser(this);
-		m_sceneBrowserOpen = false;
+		sceneBrowserOpen = false;
 
 		m_entityEditor = new entity_editor(m_spaceMgr, this);
-		m_entityEditorOpen = false;
+		entityEditorOpen = false;
+
+		m_animationEditor = new animation_editor(m_spaceMgr, this);
+		animationEditorOpen = false;
 
 		ImGuizmo::Enable(true);
 		ImGuiIO& io = ImGui::GetIO();
@@ -51,6 +55,7 @@ namespace rosen {
 		delete m_spaceBrowser;
 		delete m_sceneBrowser;
 		delete m_entityEditor;
+		delete m_animationEditor;
 		ImGuizmo::Enable(false);
 	}
 
@@ -61,6 +66,7 @@ namespace rosen {
 		m_spaceBrowser->update(frameDt, updateDt);
 		m_sceneBrowser->update(frameDt, updateDt);
 		m_entityEditor->update(frameDt, updateDt);
+		m_animationEditor->update(frameDt, updateDt);
 	}
 
 	void ui_man::render() {
@@ -71,7 +77,7 @@ namespace rosen {
 			if (camera) {
 				ImGuizmo::Manipulate(
 					&camera->transform->transform[0][0],
-					&camera->camera->projection[0][0],
+					&camera->camera->projection()[0][0],
 					m_transformationOperation,
 					m_transformationSpace,
 					&selectedEntity->transform->transform[0][0]
@@ -129,12 +135,13 @@ namespace rosen {
 
 		ImGui::BeginMenuBar();
 			if (ImGui::BeginMenu("Windows")) {
-				ImGui::MenuItem("Snipper", NULL, &m_snipperOpen);
-				ImGui::MenuItem("Skeletizer", NULL, &m_skeletizerOpen);
-				ImGui::MenuItem("Speech Planner", NULL, &m_plannerOpen);
-				ImGui::MenuItem("Space Browser", NULL, &m_spaceBrowserOpen);
-				ImGui::MenuItem("Scene Browser", NULL, &m_sceneBrowserOpen);
-				ImGui::MenuItem("Entity Editor", NULL, &m_entityEditorOpen);
+				ImGui::MenuItem("Snipper", NULL, &snipperOpen);
+				ImGui::MenuItem("Skeletizer", NULL, &skeletizerOpen);
+				ImGui::MenuItem("Speech Planner", NULL, &plannerOpen);
+				ImGui::MenuItem("Space Browser", NULL, &spaceBrowserOpen);
+				ImGui::MenuItem("Scene Browser", NULL, &sceneBrowserOpen);
+				ImGui::MenuItem("Entity Editor", NULL, &entityEditorOpen);
+				ImGui::MenuItem("Animation Editor", NULL, &animationEditorOpen);
 				ImGui::EndMenu();
 			}
 		ImGui::EndMenuBar();
@@ -142,11 +149,12 @@ namespace rosen {
 		ImGui::End();
 		ImGui::PopStyleVar(3);
 
-		m_snipper->render(&m_snipperOpen);
-		m_skeletizer->render(&m_skeletizerOpen);
-		m_planner->render(&m_plannerOpen);
-		m_spaceBrowser->render(&m_spaceBrowserOpen);
-		m_sceneBrowser->render(&m_sceneBrowserOpen);
-		m_entityEditor->render(&m_entityEditorOpen);
+		m_snipper->render(&snipperOpen);
+		m_skeletizer->render(&skeletizerOpen);
+		m_planner->render(&plannerOpen);
+		m_spaceBrowser->render(&spaceBrowserOpen);
+		m_sceneBrowser->render(&sceneBrowserOpen);
+		m_entityEditor->render(&entityEditorOpen);
+		m_animationEditor->render(&animationEditorOpen);
 	}
 };

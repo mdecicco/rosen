@@ -22,6 +22,11 @@ namespace rosen {
 
 			r2::interpolator<r2::vec3f> cameraPosition;
 			r2::interpolator<r2::vec3f> cameraTarget;
-			r2::interpolator<r2::mat4f> cameraProjection;
+			r2::interpolator<r2::f32> cameraOrthoFactor;
+			r2::interpolator<r2::f32> cameraFov;
+			r2::interpolator<r2::f32> cameraWidth;
+			r2::interpolator<r2::f32> cameraHeight;
+			r2::interpolator<r2::f32> cameraNear;
+			r2::interpolator<r2::f32> cameraFar;
 	};
 };

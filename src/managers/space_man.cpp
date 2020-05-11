@@ -333,10 +333,6 @@ namespace rosen {
 	}
 
 	void rosen_space::set_current_camera(u8 idx, bool noTransition) {
-		if (m_currentCamera == idx) {
-			if (!m_camera->camera->is_active()) camera_sys::get()->activate_camera(m_camera);
-			return;
-		}
 		m_currentCamera = idx;
 
 		camera_node* cam = m_cameraAngles[idx];
@@ -344,15 +340,29 @@ namespace rosen {
 		if (noTransition) {
 			m_camera->cameraPosition.set_immediate(cam->position);
 			m_camera->cameraTarget.set_immediate(cam->target);
-			m_camera->cameraProjection.set_immediate(cam->projection());
+			m_camera->cameraOrthoFactor.set_immediate(cam->isOrthographic ? 1.0f : 0.0f);
+			m_camera->cameraFov.set_immediate(cam->fieldOfView);
+			vec2f ws = r2engine::get()->window()->get_size();
+			m_camera->cameraWidth.set_immediate(cam->isOrthographic ? cam->width : ws.x);
+			m_camera->cameraHeight.set_immediate(cam->isOrthographic ? cam->height : ws.y);
+			m_camera->cameraNear.set_immediate(0.01f);
+			m_camera->cameraFar.set_immediate(100.0f);
 			m_camera->force_camera_update();
 		} else {
 			m_camera->cameraPosition = cam->position;
 			m_camera->cameraTarget = cam->target;
-			m_camera->cameraProjection = cam->projection();
+
+			m_camera->cameraOrthoFactor = cam->isOrthographic ? 1.0f : 0.0f;
+			m_camera->cameraFov = cam->fieldOfView;
+			vec2f ws = r2engine::get()->window()->get_size();
+			m_camera->cameraWidth = cam->isOrthographic ? cam->width : ws.x;
+			m_camera->cameraHeight = cam->isOrthographic ? cam->height : ws.y;
+			m_camera->cameraNear = 0.01f;
+			m_camera->cameraFar = 100.0f;
+			m_camera->force_camera_update();
 		}
 
-		camera_sys::get()->activate_camera(m_camera);
+		if (!m_camera->camera->is_active()) camera_sys::get()->activate_camera(m_camera);
 	}
 
 	void rosen_space::debug_draw(debug_drawer* draw) {
@@ -1156,7 +1166,12 @@ namespace rosen {
 					if (duration > 0.0f) {
 						m_camera->cameraPosition.duration(duration);
 						m_camera->cameraTarget.duration(duration);
-						m_camera->cameraProjection.duration(duration);
+						m_camera->cameraOrthoFactor.duration(duration);
+						m_camera->cameraFov.duration(duration);
+						m_camera->cameraWidth.duration(duration);
+						m_camera->cameraHeight.duration(duration);
+						m_camera->cameraNear.duration(duration);
+						m_camera->cameraFar.duration(duration);
 					}
 					set_current_camera(i, duration == 0.0f);
 					return;

@@ -175,7 +175,9 @@ namespace rosen {
 			}
 		}
 
-		if (updated) m_mgr->get_current()->camera()->cameraProjection = cam->projection();
+		if (updated && m_mgr->get_current()->camera()->camera->is_active()) {
+			m_mgr->get_current()->set_current_camera(idx);
+		}
 	}
 
 	void space_browser::poi_clicked(const mstring& name) {
