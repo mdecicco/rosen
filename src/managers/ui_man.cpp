@@ -91,6 +91,10 @@ namespace rosen {
 				selectedEntity->transform->transform = t;
 
 				if (ImGuizmo::IsUsing()) {
+					if (selectedEntity->physics) {
+						selectedEntity->physics->set_transform(t);
+						selectedEntity->physics->rigidBody()->setLinearVelocity(btVector3(0.0f, 0.0f, 0.0f));
+					}
 				}
 			}
 		}

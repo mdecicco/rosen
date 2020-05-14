@@ -36,6 +36,7 @@ namespace rosen {
 
 		mesh_sys::get()->addComponentTo(this);
 		node->material_instance()->uniforms()->uniform_vec3f("shirt_tint", shirt_color_hsv);
+		node->material_instance()->set_texture("tex", texture);
 		mesh->set_node(node);
 
 		struct i { mat4f t; i32 e; };
@@ -105,48 +106,11 @@ namespace rosen {
 	}
 
 	void rosen_entity::speak(const r2::mstring& text) {
-		speech_system* sys = speech_system::get();
-		speech_component* comp = speech();
-
-		if (comp->plan) delete comp->plan;
-		if (comp->execution) delete comp->execution;
-
-		comp->plan = sys->sources->plan_speech(text);
-		comp->execution = new speech_execution_context(comp->plan);
+		speech()->speak(text);
 	}
 
 	void rosen_entity::speak_nonsense(u32 word_count) {
 		if (word_count == 0) return;
-
-		speech_system* sys = speech_system::get();
-
-		speech_component* comp = speech();
-		comp->plan = new speech_plan();
-
-		struct possible {
-			u32 srcIdx;
-			u32 snipIdx;
-			speech_plan* plan;
-		};
-		mvector<possible> all;
-
-		for (u32 i = 0;i < sys->sources->source_count();i++) {
-			source_content* src = sys->sources->source(i);
-			for (u32 s = 0;s < src->snippets.size();s++) {
-				all.push_back({ i, s, nullptr });
-			}
-		}
-
-		for (u32 i = 0;i < sys->sources->mixedWords.size();i++) {
-			all.push_back({ 0, 0, sys->sources->mixedWords[i].plan });
-		}
-
-		for (u32 w = 0;w < word_count;w++) {
-			possible& p = all[rand() % all.size()];
-			if (p.plan) comp->plan->append(p.plan);
-			else comp->plan->add(sys->sources->source(p.srcIdx), p.snipIdx);
-		}
-
-		comp->execution = new speech_execution_context(comp->plan);
+		speech()->speak_nonsense(word_count);
 	}
 };

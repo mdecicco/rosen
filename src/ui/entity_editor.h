@@ -33,6 +33,9 @@ namespace rosen {
 		protected:
 			ui_man* m_mgr;
 			space_man* m_smgr;
+
+			char m_speechTextBuf[1024];
+			r2::i32 m_speakRandomWordCount;
 			r2::scene_entity* m_last_entity;
 	};
 };

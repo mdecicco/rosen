@@ -15,6 +15,8 @@ namespace rosen {
 		m_mgr = mgr;
 		m_smgr = smgr;
 		m_last_entity = nullptr;
+		memset(m_speechTextBuf, 0, 1024);
+		m_speakRandomWordCount = 0;
 	}
 
 	entity_editor::~entity_editor() {
@@ -245,6 +247,31 @@ namespace rosen {
 	}
 
 	void entity_editor::render_speech_ui(const ImVec2& size) {
+		auto& sstate = speech_system::get()->state();
+		sstate.enable();
+		speech_component* sc = (speech_component*)sstate->entity(m_last_entity->id());
+		sstate.disable();
+
+		InputText("##_ee_sp_t", m_speechTextBuf, 1024);
+		SameLine(0.0f, 10.0f);
+		if (Button("Speak", ImVec2(100.0f, 0.0f))) {
+			sc->speak(m_speechTextBuf);
+		}
 		
+		InputInt("##_ee_sp_rwc", &m_speakRandomWordCount);
+		SameLine(0.0f, 10.0f);
+		if (Button("Speak Random", ImVec2(100.0f, 0.0f))) {
+			sc->speak_nonsense(m_speakRandomWordCount);
+		}
+
+		if (InputFloat("Volume", &sc->volume)) {
+			if (sc->volume < 0.0f) sc->volume = 0.0f;
+		}
+		if (InputFloat("Pitch", &sc->pitch)) {
+			if (sc->pitch < 0.0f) sc->pitch = 0.0f;
+		}
+		if (InputFloat("LOD Start Distance", &sc->lod_falloff_start_dist)) {
+			if (sc->lod_falloff_start_dist < 0.0f) sc->lod_falloff_start_dist = 0.0f;
+		}
 	}
 };

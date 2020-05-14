@@ -22,6 +22,50 @@ namespace rosen {
 		if (audio) delete audio; audio = nullptr;
 	}
 
+	void speech_component::speak(const r2::mstring& text) {
+		speech_system* sys = speech_system::get();
+
+		if (plan) delete plan;
+		if (execution) delete execution;
+
+		plan = sys->sources->plan_speech(text);
+		execution = new speech_execution_context(plan);
+	}
+
+	void speech_component::speak_nonsense(u32 word_count) {
+		if (word_count == 0) return;
+
+		speech_system* sys = speech_system::get();
+
+		plan = new speech_plan();
+
+		struct possible {
+			u32 srcIdx;
+			u32 snipIdx;
+			speech_plan* plan;
+		};
+		mvector<possible> all;
+
+		for (u32 i = 0;i < sys->sources->source_count();i++) {
+			source_content* src = sys->sources->source(i);
+			for (u32 s = 0;s < src->snippets.size();s++) {
+				all.push_back({ i, s, nullptr });
+			}
+		}
+
+		for (u32 i = 0;i < sys->sources->mixedWords.size();i++) {
+			all.push_back({ 0, 0, sys->sources->mixedWords[i].plan });
+		}
+
+		for (u32 w = 0;w < word_count;w++) {
+			possible& p = all[rand() % all.size()];
+			if (p.plan) plan->append(p.plan);
+			else plan->add(sys->sources->source(p.srcIdx), p.snipIdx);
+		}
+
+		execution = new speech_execution_context(plan);
+	}
+
 
 	speech_system* speech_system::instance = nullptr;
 
@@ -50,6 +94,10 @@ namespace rosen {
 		setUpdateFrequency(25);
 		start_periodic_updates();
 		dist_lod_skip_mult = 0.001f;
+
+		r2engine::register_entity_property<f32>("speech.volume");
+		r2engine::register_entity_property<f32>("speech.pitch");
+		r2engine::register_entity_property<f32>("speech.lod_falloff_dist");
 	}
 
 	void speech_system::deinitialize() {
@@ -72,7 +120,7 @@ namespace rosen {
 		s.enable();
 		if (!s->contains_entity(entity->id())) {
 			entity->unbind("add_speech_component");
-		} else entity->unbind("remove_speech_component");
+		} else entity->unbind("speech");
 		s.disable();
 	}
 
@@ -90,10 +138,10 @@ namespace rosen {
 		using c = speech_component;
 		if (entity->is_scripted()) {
 			entity->unbind("add_speech_component");
-			entity->bind(this, "remove_speech_component", [](entity_system* system, scene_entity* entity, v8Args args) {
+			entity->bind(this, "speech", "remove", [](entity_system* system, scene_entity* entity, v8Args args) {
 				system->removeComponentFrom(entity);
 			});
-			entity->bind(this, "speak", [](entity_system* system, scene_entity* entity, v8Args args) {
+			entity->bind(this, "speech", "speak", [](entity_system* system, scene_entity* entity, v8Args args) {
 				if (args.Length() != 1 || !args[0]->IsString()) {
 					r2Error("Expected speech text to be passed to entity.speak()");
 					args.GetReturnValue().Set(v8pp::convert<f32>::to_v8(args.GetIsolate(), 0.0f));
@@ -106,16 +154,13 @@ namespace rosen {
 				auto& state = system->state();
 				state.enable();
 				speech_component* comp = (speech_component*)state->entity(entity->id());
-				if (comp->plan) delete comp->plan;
-				if (comp->execution) delete comp->execution;
-				comp->plan = sys->sources->plan_speech(text);
-				comp->execution = new speech_execution_context(comp->plan);
+				comp->speak(text);
 				comp->execution->update(comp->audio, comp->texture);
 				state.disable();
 
 				args.GetReturnValue().Set(v8pp::convert<f32>::to_v8(args.GetIsolate(), comp->plan->duration));
 			});
-			entity->bind(this, "cancel_speech", [](entity_system* system, scene_entity* entity, v8Args args) {
+			entity->bind(this, "speech", "cancel_speech", [](entity_system* system, scene_entity* entity, v8Args args) {
 				speech_system* sys = (speech_system*)system;
 				auto& state = system->state();
 				state.enable();
@@ -127,7 +172,7 @@ namespace rosen {
 				comp->audio->stop();
 				state.disable();
 			});
-			entity->bind(this, "grab_frame", [](entity_system* system, scene_entity* entity, v8Args args) {
+			entity->bind(this, "speech", "grab_frame", [](entity_system* system, scene_entity* entity, v8Args args) {
 				if (args.Length() < 2 || !args[0]->IsString() || !args[1]->IsNumber()) {
 					r2Error("Expected source name, frame time to be passed to entity.grab_frame()");
 					return;
@@ -144,11 +189,10 @@ namespace rosen {
 					speech_component* comp = (speech_component*)state->entity(entity->id());
 
 					source->frame(time, comp->texture);
-					comp->entity()->mesh->get_node()->material_instance()->set_texture("tex", comp->texture);
 					state.disable();
 				}
 			});
-			entity->bind(this, "is_speaking", [](entity_system* system, scene_entity* entity, v8Args args) {
+			entity->bind(this, "speech", "is_speaking", [](entity_system* system, scene_entity* entity, v8Args args) {
 				speech_system* sys = (speech_system*)system;
 				auto& state = system->state();
 				state.enable();
@@ -167,6 +211,7 @@ namespace rosen {
 
 	void speech_system::unbind(r2::scene_entity* entity) {
 		if (entity->is_scripted()) {
+			entity->unbind("speech");
 			entity->bind(this, "add_speech_component", [](entity_system* system, scene_entity* entity, v8Args args) {
 				system->addComponentTo(entity);
 			});

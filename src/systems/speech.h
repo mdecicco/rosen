@@ -15,6 +15,9 @@ namespace rosen {
 			speech_component();
 			~speech_component();
 
+			void speak(const r2::mstring& text);
+			void speak_nonsense(u32 word_count);
+
 			speech_plan* plan;
 			speech_execution_context* execution;
 			r2::audio_source* audio;
