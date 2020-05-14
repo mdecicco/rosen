@@ -14,6 +14,8 @@ namespace rosen {
 		m_mgr = mgr;
 		m_smgr = smgr;
 		m_last_entity = nullptr;
+		m_keyframeOptions = nullptr;
+		m_lastKeyframeOptions = nullptr;
 		m_selectedAnimation = 0;
 		memset(m_animNameBuf, 0, 64);
 	}
@@ -111,19 +113,6 @@ namespace rosen {
 				for (u32 p = 0;p < props.size();p++) {
 					bool is_in_anim = anim->track(props[p]) != nullptr;
 					Text(props[p].c_str());
-					if (is_in_anim) {
-						SameLine(anim_prop_list_width - 160.0f);
-						memset(btn_buf, 0, 6);
-						snprintf(btn_buf, 6, "kf_%d", p);
-						PushID(btn_buf);
-						if (Button("Key", ImVec2(75.0f, 20.0f))) {
-							kfe->Track(props[p])->AddKeyframe(
-								anim->current_time(), 
-								m_last_entity->create_keyframe(props[p], anim, interpolate::itm_easeInOutCubic)
-							);
-						}
-						PopID();
-					}
 
 					SameLine(anim_prop_list_width - 80.0f);
 					memset(btn_buf, 0, 6);
@@ -148,39 +137,7 @@ namespace rosen {
 			// Keyframe editor
 			kfe->CurrentTime = anim->current_time();
 			SetCursorPos(ImVec2(cp.x + anim_list_width + padding + anim_prop_list_width + padding, cp.y));
-			if (kf::KeyframeEditor(kfe, ImVec2(0.0f, cr_sz.y - (footer_height + padding)))) {
-				for (u32 i = 0;i < kfe->TrackCount();i++) {
-					kf::KeyframeTrackBase* track = kfe->Track(i);
-					animation_track_base* a_track = (animation_track_base*)track->user_pointer;
-					mlist<keyframe_base*> old_keys = a_track->keyframes;
-					a_track->keyframes.clear();
-					for (auto k = track->keyframes.begin();k != track->keyframes.end();k++) {
-						keyframe_base* kb = (keyframe_base*)(*k)->user_pointer;
-						kb->time = (*k)->time;
-						a_track->keyframes.push_back(kb);
-					}
-
-					for (auto ok = old_keys.begin();ok != old_keys.end();ok++) {
-						bool found = false;
-						for (auto nk = a_track->keyframes.begin();nk != a_track->keyframes.end();nk++) {
-							if (*nk == *ok) {
-								found = true;
-								break;
-							}
-						}
-
-						if (!found) delete *ok;
-					}
-					a_track->last_keyframe = a_track->keyframes.end();
-					a_track->last_time = 0.0f;
-				}
-			}
-			if (kfe->CurrentTime != anim->current_time()) {
-				anim->set_time(kfe->CurrentTime);
-				anim->play();
-				anim->update(0.0f, m_last_entity);
-				anim->pause();
-			}
+			kf::KeyframeEditor(kfe, ImVec2(0.0f, cr_sz.y - (footer_height + padding)));
 
 			// Footer
 			SetCursorPos(ImVec2(cp.x, cp.y + cr_sz.y - footer_height));
@@ -207,6 +164,44 @@ namespace rosen {
 		}
 
 		End();
+
+		if (m_keyframeOptions != m_lastKeyframeOptions) {
+			OpenPopup("Keyframe Options");
+			m_lastKeyframeOptions = m_keyframeOptions;
+		}
+
+		bool kf_options_open = IsPopupOpen("Keyframe Options");
+		if (BeginPopup("Keyframe Options", ImGuiWindowFlags_NoTitleBar)) {
+			static const char* itm[14] = {
+				"No Interpolation",
+				"Linear",
+				"Ease In (quad)",
+				"Ease Out (quad)",
+				"Ease In/Out (quad)",
+				"Ease In (cubic)",
+				"Ease Out (cubic)",
+				"Ease In/Out (cubic)",
+				"Ease In (quart)",
+				"Ease Out (quart)",
+				"Ease In/Out (quart)",
+				"Ease In (quint)",
+				"Ease Out (quint)",
+				"Ease In/Out (quint)"
+			};
+			if (BeginCombo("##_eae_kf_it", itm[m_keyframeOptions->interpolation_mode])) {
+				for (u32 i = 0;i < 14;i++) {
+					PushID(i);
+					if (Selectable(itm[i], m_keyframeOptions->interpolation_mode == i)) {
+						m_keyframeOptions->interpolation_mode = (interpolate::interpolation_transition_mode)i;
+						m_keyframeOptions->interpolation_factor_cb = interpolate::from_enum((interpolate::interpolation_transition_mode)i);
+					}
+					PopID();
+				}
+				EndCombo();
+			}
+
+			EndPopup();
+		} else m_keyframeOptions = m_lastKeyframeOptions = nullptr;
 	}
 
 	void animation_editor::save_anims() {
@@ -245,6 +240,7 @@ namespace rosen {
 			anim->animations.for_each([this](animation_group** _anim) {
 				animation_group* anim = *_anim;
 				kf::KeyframeEditorInterface* kei = new kf::KeyframeEditorInterface();
+				kei->callback_userdata = this;
 				kei->Duration = anim->duration();
 
 				for (u32 i = 0;i < anim->track_count();i++) {
@@ -255,6 +251,83 @@ namespace rosen {
 						ke_track->AddKeyframe((*it)->time, *it);
 					}
 				}
+
+				kei->on_create_keyframe = [](void* _self, void* _track, f32 time, void*& out_keyframe) {
+					animation_editor* self = (animation_editor*)_self;
+					animation_component* comp = self->m_last_entity->animation.get();
+					animation_group* anim = *comp->animations[self->m_selectedAnimation];
+					animation_track_base* track = (animation_track_base*)_track;
+					keyframe_base* kf = self->m_last_entity->create_keyframe(track->name, anim, interpolate::itm_easeInOutCubic);
+					
+					if (kf) out_keyframe = kf;
+					else return false;
+
+					return true;
+				};
+
+				kei->on_delete_keyframe = [](void* _self, void* _track, void* _keyframe) {
+					animation_track_base* track = (animation_track_base*)_track;
+					keyframe_base* kf = (keyframe_base*)_keyframe;
+
+					for (auto it = track->keyframes.begin();it != track->keyframes.end();it++) {
+						if ((*it) == kf) {
+							if (track->last_keyframe == it) track->last_keyframe = track->keyframes.end();
+							track->keyframes.erase(it);
+							return true;
+						}
+					}
+
+					return false;
+				};
+
+				kei->on_set_keyframe_time = [](void* _self, void* _track, void* _keyframe, f32 time) {
+					animation_track_base* track = (animation_track_base*)_track;
+
+					keyframe_base* kf = (keyframe_base*)_keyframe;
+					kf->time = time;
+
+					// delete overlapped keyframe, if one exists
+					for (auto it = track->keyframes.begin();it != track->keyframes.end();it++) {
+						if ((*it) == _keyframe) continue;
+						if (time > (*it)->time - 0.0001f && time < (*it)->time + 0.0001f) {
+							if (track->last_keyframe == it) track->last_keyframe = track->keyframes.end();
+							delete *it;
+							track->keyframes.erase(it);
+							break;
+						}
+					}
+
+					return true;
+				};
+
+				kei->on_keyframe_reorder = [](void* _self, void* _track, const vector<void*>& _keyframes) {
+					animation_track_base* track = (animation_track_base*)_track;
+					track->keyframes.clear();
+					track->last_keyframe = track->keyframes.end();
+
+					for (u32 i = 0;i < _keyframes.size();i++) {
+						track->keyframes.push_back((keyframe_base*)_keyframes[i]);
+					}
+				};
+
+				kei->on_seek = [](void* _self, f32 time) {
+					animation_editor* self = (animation_editor*)_self;
+					animation_component* comp = self->m_last_entity->animation.get();
+					animation_group* anim = *comp->animations[self->m_selectedAnimation];
+					anim->set_time(time);
+					anim->play();
+					anim->update(0.0f, self->m_last_entity);
+					anim->pause();
+				};
+
+				kei->keyframe_context_menu_items.push_back({
+					"Options",
+					[](void* _self, void* _track, void* _keyframe) {
+						animation_editor* self = (animation_editor*)_self;
+						keyframe_base* kf = (keyframe_base*)_keyframe;
+						self->m_keyframeOptions = kf;
+					}
+				});
 
 				m_entityAnims.push_back(kei);
 				return true;

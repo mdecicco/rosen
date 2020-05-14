@@ -8,6 +8,7 @@
 #include <ui/animation_editor.h>
 
 #include <r2/engine.h>
+#include <r2/utilities/debug_drawer.h>
 
 using namespace r2;
 
@@ -46,6 +47,7 @@ namespace rosen {
 
 		m_transformationSpace = ImGuizmo::MODE::WORLD;
 		m_transformationOperation = ImGuizmo::OPERATION::TRANSLATE;
+		cursorWorldPosition = vec3f(0.0f);
 	}
 
 	ui_man::~ui_man() {
@@ -75,13 +77,18 @@ namespace rosen {
 		if (selectedEntity && selectedEntity->transform) {
 			scene_entity* camera = r2engine::current_scene()->camera;
 			if (camera) {
+				mat4f t = selectedEntity->transform->transform;
+				if (selectedEntity->camera) t = glm::inverse(t);
 				ImGuizmo::Manipulate(
 					&camera->transform->transform[0][0],
 					&camera->camera->projection()[0][0],
 					m_transformationOperation,
 					m_transformationSpace,
-					&selectedEntity->transform->transform[0][0]
+					&t[0][0]
 				);
+
+				if (selectedEntity->camera) t = glm::inverse(t);
+				selectedEntity->transform->transform = t;
 
 				if (ImGuizmo::IsUsing()) {
 				}
@@ -112,12 +119,20 @@ namespace rosen {
 					m_transformationSpace = ImGuizmo::LOCAL;
 					rightClickedEntity = nullptr;
 				}
+
+				rosen_space* space = m_spaceMgr->get_current();
+				if (space) {
+					ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.5f), "Spawn");
+					if (ImGui::Selectable("Spawn Rosen")) {
+						space->spawn_rosen("Michael Rosen", glm::translate(mat4f(1.0f), cursorWorldPosition));
+					}
+				}
 				ImGui::EndPopup();
 			}
 		}
 
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
-		ImGui::SetNextWindowSize(ImVec2(r2engine::get()->window()->get_size().x, 30));
+		ImGui::SetNextWindowSize(ImVec2(r2engine::get()->window()->get_size().x, ImGui::GetFont()->FontSize + (ImGui::GetStyle().FramePadding.y * 2.0f)));
 		ImGuiWindowFlags window_flags = 0
 			| ImGuiWindowFlags_MenuBar
 			| ImGuiWindowFlags_NoTitleBar
@@ -156,5 +171,57 @@ namespace rosen {
 		m_sceneBrowser->render(&sceneBrowserOpen);
 		m_entityEditor->render(&entityEditorOpen);
 		m_animationEditor->render(&animationEditorOpen);
+	}
+
+	void ui_man::draw_camera(r2::scene_entity* cam, r2::debug_drawer* draw) {
+		mat4f t(1.0f);
+		mat4f p(1.0f);
+		if (cam->transform) t = glm::inverse(cam->transform->transform);
+		if (cam->camera) {
+			cam->camera->update_projection();
+			p = glm::inverse(cam->camera->projection());
+		}
+
+		vec3f cube[8] = {
+			vec3f(-0.5f,  0.5f,  0.5f),
+			vec3f( 0.5f,  0.5f,  0.5f),
+			vec3f( 0.5f,  0.5f, -0.5f),
+			vec3f(-0.5f,  0.5f, -0.5f),
+			vec3f(-0.5f, -0.5f,  0.5f),
+			vec3f( 0.5f, -0.5f,  0.5f),
+			vec3f( 0.5f, -0.5f, -0.5f),
+			vec3f(-0.5f, -0.5f, -0.5f)
+		};
+		
+		struct line {
+			u8 p0;
+			u8 p1;
+		};
+		line lines[12] = {
+			{ 0, 1 },
+			{ 1, 2 },
+			{ 2, 3 },
+			{ 3, 0 },
+			{ 0, 4 },
+			{ 1, 5 },
+			{ 2, 6 },
+			{ 3, 7 },
+			{ 4, 5 },
+			{ 5, 6 },
+			{ 6, 7 },
+			{ 7, 4 }
+		};
+
+		for (u8 l = 0;l < 12;l++) {
+			vec3f body_p0 = t * vec4f(cube[lines[l].p0], 1.0f);
+			vec3f body_p1 = t * vec4f(cube[lines[l].p1], 1.0f);
+			vec4f frustum_p0 = p * vec4f(cube[lines[l].p0] * 2.0f, 1.0f);
+			vec4f frustum_p1 = p * vec4f(cube[lines[l].p1] * 2.0f, 1.0f);
+			frustum_p0 /= frustum_p0.w;
+			frustum_p1 /= frustum_p1.w;
+
+			draw->line(body_p0, body_p1, vec4f(0.7f, 0.7f, 0.7f, 1.0f));
+			draw->line(t * frustum_p0, t * frustum_p1, vec4f(0.5f, 0.5f, 0.5f, 1.0f));
+		}
 	}
 };

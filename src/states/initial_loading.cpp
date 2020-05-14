@@ -46,24 +46,48 @@ namespace rosen {
 		// This state will be activated immediately after that
 
 		kfi = new kf::KeyframeEditorInterface();
-		kfi->AddTrack<float>("test abc", 0.0f);
-		kfi->AddTrack<float>("testy", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 0", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 1", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 2", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 3", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 4", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 5", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 6", 0.0f);
-		kfi->AddTrack<float>("grumpo balls 7", 0.0f);
-		kfi->SetKeyframe("test abc", 1.0f, 2.0f);
-		kfi->SetKeyframe("testy", 1.0f, 3.0f);
-		kfi->SetKeyframe("grumpo balls 0", 1.0f, 4.0f);
-		kfi->SetKeyframe("grumpo balls 0", 1.0f, 4.0f);
-		kfi->SetKeyframe("grumpo balls 0", 2.0f, 4.1f);
-		kfi->SetKeyframe("grumpo balls 0", 3.0f, 4.2f);
-		kfi->SetKeyframe("grumpo balls 0", 4.0f, 4.3f);
+		kfi->AddTrack<float>("test abc", 0.0f, "test abc");
+		kfi->AddTrack<float>("testy", 0.0f, "testy");
+		kfi->AddTrack<float>("grumpo balls 0", 0.0f, "grumpo balls 0");
+		kfi->AddTrack<float>("grumpo balls 1", 0.0f, "grumpo balls 1");
+		kfi->AddTrack<float>("grumpo balls 2", 0.0f, "grumpo balls 2");
+		kfi->AddTrack<float>("grumpo balls 3", 0.0f, "grumpo balls 3");
+		kfi->AddTrack<float>("grumpo balls 4", 0.0f, "grumpo balls 4");
+		kfi->AddTrack<float>("grumpo balls 5", 0.0f, "grumpo balls 5");
+		kfi->AddTrack<float>("grumpo balls 6", 0.0f, "grumpo balls 6");
+		kfi->AddTrack<float>("grumpo balls 7", 0.0f, "grumpo balls 7");
+		kfi->SetKeyframe("test abc", 1.0f, 2.0f, "ass");
+		kfi->SetKeyframe("testy", 1.0f, 3.0f, "fart");
+		kfi->SetKeyframe("grumpo balls 0", 1.0f, 4.0f, "piss");
+		kfi->SetKeyframe("grumpo balls 0", 1.0f, 4.0f, "shit");
+		kfi->SetKeyframe("grumpo balls 0", 2.0f, 4.1f, "balls");
+		kfi->SetKeyframe("grumpo balls 0", 3.0f, 4.2f, "cumb");
+		kfi->SetKeyframe("grumpo balls 0", 4.0f, 4.3f, "fork");
 		kfi->Duration = 60.0f;
+		kfi->on_create_keyframe = [](void* cb_user_data, void* track_data, float time, void*& new_kf_userdata) {
+			printf("Create keyframe on '%s' at %.2f\n", (const char*)track_data, time);
+			new_kf_userdata = "boners";
+			return true;
+		};
+		kfi->on_delete_keyframe = [](void* cb_user_data, void* track_data, void* kf_data) {
+			printf("Delete keyframe '%s' on '%s'\n", (const char*)kf_data, (const char*)track_data);
+			return true;
+		};
+		kfi->on_set_keyframe_time = [](void* cb_user_data, void* track_data, void* kf_data, f32 time) {
+			printf("Set keyframe '%s' on '%s' to %0.2f\n", (const char*)kf_data, (const char*)track_data, time);
+			return true;
+		};
+		kfi->on_keyframe_reorder = [](void* cb_user_data, void* track_data, const vector<void*>& kf_datas) {
+			printf("Track '%s': ", (const char*)track_data);
+			for (u32 i = 0;i < kf_datas.size();i++) {
+				if (i > 0) printf(", ");
+				printf((const char*)kf_datas[i]);
+			}
+			printf("\n");
+		};
+		kfi->on_seek = [](void* cb_user_data, f32 time) {
+			printf("Seek: %.2f\n", time);
+		};
 	}
 
 	void initial_loading_state::becameActive() {

@@ -1,7 +1,8 @@
 #include <ui/entity_editor.h>
+#include <ui/keyframe_editor.h>
 #include <managers/ui_man.h>
 #include <managers/space_man.h>
-#include <ui/keyframe_editor.h>
+#include <systems/speech.h>
 
 #include <r2/engine.h>
 using namespace r2;
@@ -79,6 +80,14 @@ namespace rosen {
 					}
 				}
 			}
+			if (CollapsingHeader("Speech")) {
+				auto& sstate = speech_system::get()->state();
+				sstate.enable();
+				bool entityHasSpeech = sstate->contains_entity(e->id());
+				sstate.disable();
+				if (entityHasSpeech) render_speech_ui(cr_sz);
+				else if (Button("Add Speech Component", ImVec2(cr_sz.x, 0.0f))) speech_system::get()->addComponentTo(e);
+			}
 		End();
 	}
 
@@ -92,6 +101,34 @@ namespace rosen {
 	}
 
 	void entity_editor::render_camera_ui(const ImVec2& size) {
+		camera_component* cam = m_last_entity->camera.get();
+		if (!cam->is_active()) {
+			if (Button("Activate")) cam->activate();
+		}
+
+		bool modified = false;
+		if (DragFloat("Field of View", &cam->field_of_view, 0.25f, 0.001f, 179.999f)) {
+			modified = true;
+		}
+		if (DragFloat("Orthographic Factor", &cam->orthographic_factor, 0.01f, 0.0f, 1.0f)) {
+			modified = true;
+		}
+		if (DragFloat("Width", &cam->width, 0.5f)) {
+			if (cam->width <= 0.001f) cam->width = 0.001f;
+			modified = true;
+		}
+		if (DragFloat("Height", &cam->height, 0.5f)) {
+			if (cam->height <= 0.001f) cam->height = 0.001f;
+			modified = true;
+		}
+		if (DragFloat("Near Plane", &cam->near_plane, 0.1f, 0.001f, cam->far_plane)) {
+			modified = true;
+		}
+		if (DragFloat("Far Plane", &cam->far_plane, 0.1f, cam->near_plane, 1000.0f)) {
+			modified = true;
+		}
+
+		if (modified) cam->update_projection();
 	}
 
 	void entity_editor::render_mesh_ui(const ImVec2& size) {
@@ -205,5 +242,9 @@ namespace rosen {
 		if (DragFloat("Quadratic Att.", &c->quadraticAttenuation, 0.001f, 0.0f, 0.0f, "%.4f")) {
 			if (c->quadraticAttenuation < 0.0f) c->quadraticAttenuation = 0.0f;
 		}
+	}
+
+	void entity_editor::render_speech_ui(const ImVec2& size) {
+		
 	}
 };

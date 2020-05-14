@@ -5,6 +5,7 @@
 
 namespace r2 {
 	class scene_entity;
+	class keyframe_base;
 };
 
 namespace kf {
@@ -34,6 +35,8 @@ namespace rosen {
 
 		char m_animNameBuf[64];
 		r2::u8 m_selectedAnimation;
+		r2::keyframe_base* m_keyframeOptions;
+		r2::keyframe_base* m_lastKeyframeOptions;
 		std::vector<kf::KeyframeEditorInterface*> m_entityAnims;
 	};
 };

@@ -28,6 +28,7 @@ namespace rosen {
 			void render_mesh_ui(const ImVec2& size);
 			void render_physics_ui(const ImVec2& size);
 			void render_lighting_ui(const ImVec2& size);
+			void render_speech_ui(const ImVec2& size);
 
 		protected:
 			ui_man* m_mgr;

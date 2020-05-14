@@ -14,6 +14,7 @@ namespace kf {
 			bool context_window_open;
 			bool dragging;
 			float last_drag_sec;
+			float time_before_drag;
 		} draw_data;
 	};
 
@@ -100,6 +101,23 @@ namespace kf {
 		}
 	};
 
+
+	/*
+	 * Interface between the application and the keyframe editor
+	 *
+	 * Notes:
+	 *    - If no callbacks are set, the editor will:
+	 *       - Create empty keyframes when the keyframe button is pressed for any track
+	 *       - Delete keyframes when the delete option is clicked in the keyframe context menu
+	 *       - Delete the non-dragged keyframe if one keyframe is moved to within 0.0001 second of another
+	 *    - If SetKeyframe is called two or more times for the same track / time pair, the existing keyframe
+	 *      on the track at that time will be overwritten with the new one
+	 *    - The ValueAtTime function only exists as a possible convenience to the application and isn't used
+	 *      internally. You can add typeless/valueless tracks / keyframes if desired.
+	 *    - If you use ValueAtTime on a typeless/valueless track the behavior is undefined.
+	 *    - If you use ValueAtTime with a type that is different than the type the specified track was created
+	 *      with then the behavior is undefined
+	 */
 	class KeyframeEditorInterface {
 		public:
 			KeyframeEditorInterface();
@@ -115,6 +133,11 @@ namespace kf {
 				track->user_pointer = user_pointer;
 				m_tracks[name] = track;
 				m_contiguousTracks.push_back(track);
+			}
+
+			template <typename T>
+			inline void AddTrack(const std::string& name, const T& initial, void* user_pointer) {
+				AddTrack<T>(name, initial, ImColor(1.0f, 1.0f, 1.0f), default_interpolator<T>, user_pointer);
 			}
 
 			void AddTrack(const std::string& name, const ImColor& color = ImColor(1.0f, 1.0f, 1.0f), void* user_pointer = nullptr);
@@ -158,6 +181,45 @@ namespace kf {
 				assert(it != m_tracks.end());
 				return ((KeyframeTrack<T>*)*it)->ValueAtTime(time);
 			}
+
+			typedef bool (*create_keyframe_callback)(void* /* callback_userdata */, void* /* track_userdata */, float /* time */, void*& /* new_keyframe_user_data */);
+			typedef bool (*set_keyframe_time_callback)(void* /* callback_userdata */, void* /* track_userdata */, void* /* keyframe_userdata */, float /* time */);
+			typedef void (*seek_callback)(void* /* callback_userdata */, float /* time */);
+			typedef bool (*delete_keyframe_callback)(void* /* callback_userdata */, void* /* track_userdata */, void* /* keyframe_userdata */);
+			typedef void (*reorder_keyframes_callback)(void* /* callback_userdata */, void* /* track_userdata */, const std::vector<void*>& /* ordered_keyframe_userdatas */);
+			typedef void (*keyframe_context_menu_callback)(void* /* callback_userdata */, void* /* track_userdata */, void* /* keyframe_userdata */);
+
+			// Return true if keyframe created, false if not
+			create_keyframe_callback on_create_keyframe;
+
+			// Note:
+			//	  If this function would result in the application setting the time for some keyframe (keyframe A) to the same time (+/- 0.0001 seconds) as
+			//    some other keyframe (keyframe B), the keyframe editor's internal logic assumes that the application gets rid of keyframe B on its own. The
+			//    on_delete_keyframe callback is not called for keyframe B since that callback implies that you don't have to delete it if that would not
+			//    agree with the application. This keyframe editor does not let multiple keyframes exist for the same time. In the above scenario, the editor
+			//    will automatically delete it's own record of keyframe B. If the application does not do this, the editor will no longer accurately reflect
+			//    the animation being edited.
+			//
+			//    Alternatively to deleting keyframe B, the callback return false and the keyframe editor will put keyframe A back where it was before moving
+			//    it.
+			set_keyframe_time_callback on_set_keyframe_time;
+
+			// Return true if keyframe is deleted (or otherwise removed from the animation), false if not
+			delete_keyframe_callback on_delete_keyframe;
+
+			// Application should reorder its keyframes according to the last parameter of this function
+			reorder_keyframes_callback on_keyframe_reorder;
+
+			// Current time changed
+			seek_callback on_seek;
+
+			struct keyframe_context_menu_item {
+				const char* text;
+				keyframe_context_menu_callback callback;
+			};
+			std::vector<keyframe_context_menu_item> keyframe_context_menu_items;
+
+			void* callback_userdata;
 
 			float CurrentTime;
 			float Duration;

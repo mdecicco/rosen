@@ -6,6 +6,7 @@
 namespace r2 {
 	class scene;
 	class scene_entity;
+	class debug_drawer;
 };
 
 namespace rosen {
@@ -23,11 +24,15 @@ namespace rosen {
 		public:
 			ui_man(source_man* smgr, space_man* spmgr, r2::scene* s);
 			~ui_man();
+
 			void update(r2::f32 frameDt, r2::f32 updateDt);
 			void render();
 
+			void draw_camera(r2::scene_entity* cam, r2::debug_drawer* draw);
+
 			r2::scene_entity* selectedEntity;
 			r2::scene_entity* rightClickedEntity;
+			r2::vec3f cursorWorldPosition;
 			bool snipperOpen;
 			bool skeletizerOpen;
 			bool plannerOpen;

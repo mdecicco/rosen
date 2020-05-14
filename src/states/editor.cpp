@@ -129,6 +129,10 @@ namespace rosen {
 		m_ui->update(frameDt, updateDt);
 		rosen_space* space = m_spaces->get_current();
 		if (space) space->update(updateDt);
+
+		vec2i rbo_dims = m_rbo->dimensions();
+		vec2i w_dims = r2engine::get()->window()->get_size();
+		if (rbo_dims != w_dims) m_rbo->resize(w_dims);
 	}
 
 	inline GLuint textureId(texture_buffer* tex) {
@@ -144,25 +148,36 @@ namespace rosen {
 		if (camera) r2engine::audio()->setListener(glm::inverse(camera->transform->transform));
 		m_ui->render();
 
+		rosen_space* c_space = m_spaces->get_current();
+		if (c_space) {
+			rosen_camera_entity* s_cam = c_space->camera();
+			if (s_cam) m_ui->draw_camera((scene_entity*)s_cam, m_debugDraw);
+		}
+
 		GLFWwindow* window = *r2engine::get()->window();
 		char title[128] = { 0 };
 		snprintf(title, 128, "Rosen | %8.2f FPS | %.8s / %.8s", r2engine::get()->fps(), format_size(getUsedMemorySize()), format_size(getMaxMemorySize()));
 		glfwSetWindowTitle(window, title);
 
 		if (!ImGui::GetIO().WantCaptureMouse) {
+			ImVec2 mp = ImGui::GetMousePos();
 			if (ImGui::IsMouseClicked(0)) {
 				u32 entityId = 0;
-				ImVec2 mp = ImGui::GetMousePos();
 				m_rbo->fetch_pixel(mp.x, mp.y, 1, &entityId, sizeof(u32));
 				if (entityId) m_ui->selectedEntity = r2engine::entity(entityId);
 				else m_ui->selectedEntity = nullptr;
 			}
 			else if (ImGui::IsMouseClicked(1)) {
 				u32 entityId = 0;
-				ImVec2 mp = ImGui::GetMousePos();
 				m_rbo->fetch_pixel(mp.x, mp.y, 1, &entityId, sizeof(u32));
 				if (entityId) m_ui->rightClickedEntity = r2engine::entity(entityId);
 				else m_ui->rightClickedEntity = nullptr;
+			}
+
+			if (camera) {
+				f32 depth = m_rbo->fetch_depth(mp.x, mp.y);
+				vec2f dims = m_rbo->dimensions();
+				m_ui->cursorWorldPosition = glm::unProject(vec3f(mp.x, dims.y - mp.y, depth), camera->transform->transform, camera->camera->projection(), vec4f(0.0f, 0.0f, dims));
 			}
 		}
 

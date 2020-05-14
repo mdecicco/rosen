@@ -3,7 +3,6 @@ using namespace ImGui;
 using namespace std;
 
 namespace kf {
-
 	void KeyframeTrackBase::AddKeyframe(float time, void* user_pointer) {
 		for (auto i = keyframes.begin();i != keyframes.end();i++) {
 			KeyframeBase* kf = *i;
@@ -42,6 +41,13 @@ namespace kf {
 		draw_data.scroll_y = 0.0f;
 		draw_data.scroll_start_y = 0.0f;
 		draw_data.last_window_width = 0.0f;
+
+		callback_userdata = nullptr;
+		on_create_keyframe = nullptr;
+		on_set_keyframe_time = nullptr;
+		on_delete_keyframe = nullptr;
+		on_keyframe_reorder = nullptr;
+		on_seek = nullptr;
 	}
 
 	KeyframeEditorInterface::~KeyframeEditorInterface() {
@@ -116,7 +122,7 @@ namespace kf {
 		static const float scroll_bar_thickness = 16.0f;
 		static const float scroll_bar_padding = 2.5f;
 		static const float keyframe_width_in_seconds = 0.01f;
-		static const float keyframe_min_width_in_pixels = 1.0f;
+		static const float keyframe_min_width_in_pixels = 5.0f;
 		static const float keyframe_max_width_in_pixels = 10.0f;
 		static const float scale_mult = 0.06f;
 		static const float scroll_mult = 5.0f;
@@ -128,6 +134,8 @@ namespace kf {
 		static const ImU32 scroll_bg_color = ImColor(0.0f, 0.0f, 0.0f, 0.4f);
 		static const ImU32 scroll_bar_color = ImColor(1.0f, 1.0f, 1.0f, 0.1f);
 		static const ImU32 scroll_bar_highlight_color = ImColor(1.0f, 1.0f, 1.0f, 0.25f);
+		static const ImU32 track_key_btn_color = ImColor(1.0f, 1.0f, 0.0f, 0.5f);
+		static const ImU32 track_key_btn_highlight_color = ImColor(1.0f, 1.0f, 0.0f, 0.75f);
 
 		bool keyframes_modified = false;
 
@@ -149,6 +157,7 @@ namespace kf {
 			if (max_track_text_size.y == 0.0f) max_track_text_size.y = 16.0f;
 
 			float track_height = (track_padding * 2.0f) + (track_margin * 2.0f) + max_track_text_size.y;
+			float track_key_btn_width = max_track_text_size.y;
 			ImVec2 cr_mn = GetWindowContentRegionMin();
 			ImVec2 cr_mx = GetWindowContentRegionMax();
 			ImVec2 sz = ImVec2(
@@ -178,7 +187,7 @@ namespace kf {
 			ImVec2 v_scroll_bar_br = ImVec2(v_scroll_bg_br.x - scroll_bar_padding, v_scroll_bg_br.y - scroll_bar_padding);
 
 			ImVec2 time_bar_tl = ImVec2(
-				o.x + track_margin + max_track_text_size.x + (track_padding * 2.0f) + space_between_name_and_keyframes,
+				o.x + track_margin + max_track_text_size.x + track_key_btn_width + (track_padding * 3.0f) + space_between_name_and_keyframes,
 				o.y + track_margin
 			);
 			ImVec2 time_bar_br = ImVec2(
@@ -289,12 +298,25 @@ namespace kf {
 					o.x + sz.x - scroll_bar_thickness - track_margin,
 					track_tl.y + (track_height - (track_margin * 2.0f))
 				);
-				ImVec2 track_name_br = ImVec2(track_tl.x + max_track_text_size.x + (track_padding * 2.0f), track_br.y);
+
+				ImVec2 track_key_btn_tl = ImVec2(track_tl.x + track_padding, track_tl.y + track_padding);
+				ImVec2 track_key_btn_br = ImVec2(track_key_btn_tl.x + track_key_btn_width, track_key_btn_tl.y + track_key_btn_width);
+
+				ImVec2 track_name_br = ImVec2(track_tl.x + max_track_text_size.x + (track_padding * 2.0f) + track_key_btn_width + track_padding, track_br.y);
 				ImVec2 track_keyframes_tl = ImVec2(track_name_br.x + space_between_name_and_keyframes, track_tl.y);
 				if (IsRectVisible(track_tl, track_br)) {
+					bool hovering_key_btn = mp.x > track_key_btn_tl.x && mp.x < track_key_btn_br.x && mp.y > track_key_btn_tl.y && mp.y < track_key_btn_br.y;
 					dl->AddRectFilled(track_tl, track_name_br, track_bg_color, 5.0f, ImDrawCornerFlags_Left);
+					dl->AddRectFilled(track_key_btn_tl, track_key_btn_br, hovering_key_btn ? track_key_btn_highlight_color : track_key_btn_color, 5.0f);
 					dl->AddRectFilled(track_keyframes_tl, track_br, track_bg_color, 5.0f, ImDrawCornerFlags_Right);
-					dl->AddText(ImVec2(track_tl.x + track_padding, track_tl.y + track_padding), 0xFFFFFFFF, t->name.c_str());
+					dl->AddText(ImVec2(track_tl.x + track_padding + track_key_btn_width + track_padding, track_tl.y + track_padding), 0xFFFFFFFF, t->name.c_str());
+
+					if (IsMouseClicked(0) && hovering_key_btn) {
+						void* user_pointer = nullptr;
+						if (!data->on_create_keyframe || data->on_create_keyframe(data->callback_userdata, t->user_pointer, data->CurrentTime, user_pointer)) {
+							t->AddKeyframe(data->CurrentTime, user_pointer);
+						}
+					}
 
 					PushClipRect(track_keyframes_tl, track_br, true);
 					for (auto k = t->keyframes.begin();k != t->keyframes.end();k++) {
@@ -332,11 +354,14 @@ namespace kf {
 								if (Selectable("Scrub To")) {
 									kf->draw_data.context_window_open = false;
 									data->CurrentTime = (*k)->time;
+									if (data->on_seek) data->on_seek(data->callback_userdata, data->CurrentTime);
+								}
+								for (size_t kci = 0;kci < data->keyframe_context_menu_items.size();kci++) {
+									if (Selectable(data->keyframe_context_menu_items[kci].text)) data->keyframe_context_menu_items[kci].callback(data->callback_userdata, t->user_pointer, kf->user_pointer);
 								}
 								if (Selectable("Delete")) {
 									kf->draw_data.context_window_open = false;
 									remove_iter = k;
-									keyframes_modified = true;
 								}
 								EndPopup();
 							}
@@ -355,7 +380,6 @@ namespace kf {
 							if (kf->draw_data.dragging) {
 								move_iter = k;
 								kf->draw_data.dragging = false;
-								keyframes_modified = true;
 							}
 						} else {
 							if ((*k)->draw_data.dragging) {
@@ -364,39 +388,55 @@ namespace kf {
 								kf->time += ds;
 								if (kf->time < 0.0f) kf->time = 0.0f;
 								else if (kf->time > data->Duration) kf->time = data->Duration;
-								keyframes_modified = true;
 							}
 
 							if (!found_dragged && hovering && IsMouseClicked(0)) {
 								kf->draw_data.dragging = true;
 								kf->draw_data.last_drag_sec = x_to_sec(mp.x);
+								kf->draw_data.time_before_drag = kf->time;
 								found_dragged = true;
 							}
 						}
 					}
 
 					if (move_iter != t->keyframes.end()) {
-						bool found_place = false;
-						for (auto nk = t->keyframes.begin();nk != t->keyframes.end();nk++) {
-							if ((*nk)->time > (*move_iter)->time + 0.0001f) {
-								t->keyframes.splice(nk, t->keyframes, move_iter);
-								found_place = true;
-								break;
-							} else if (nk != move_iter && (*nk)->time < (*move_iter)->time + 0.0001f && (*nk)->time > (*move_iter)->time - 0.0001f) {
-								t->keyframes.splice(nk, t->keyframes, move_iter);
-								delete *nk;
-								t->keyframes.erase(nk);
-								found_place = true;
-								break;
+						if (!data->on_set_keyframe_time || data->on_set_keyframe_time(data->callback_userdata, t->user_pointer, (*move_iter)->user_pointer, (*move_iter)->time)) {
+							bool found_place = false;
+							for (auto k = t->keyframes.begin();k != t->keyframes.end();k++) {
+								if ((*k)->time > (*move_iter)->time + 0.0001f) {
+									t->keyframes.splice(k, t->keyframes, move_iter);
+									found_place = true;
+									break;
+								} else if (k != move_iter && (*k)->time < (*move_iter)->time + 0.0001f && (*k)->time > (*move_iter)->time - 0.0001f) {
+									t->keyframes.splice(k, t->keyframes, move_iter);
+									delete *k;
+									t->keyframes.erase(k);
+									found_place = true;
+									break;
+								}
 							}
-						}
 
-						if (!found_place) t->keyframes.splice(t->keyframes.end(), t->keyframes, move_iter);
+							if (!found_place) t->keyframes.splice(t->keyframes.end(), t->keyframes, move_iter);
+
+							if (data->on_keyframe_reorder) {
+								std::vector<void*> key_datas;
+								for (auto k = t->keyframes.begin();k != t->keyframes.end();k++) {
+									key_datas.push_back((*k)->user_pointer);
+								}
+
+								data->on_keyframe_reorder(data->callback_userdata, t->user_pointer, key_datas);
+							}
+
+							keyframes_modified = true;
+						} else (*move_iter)->time = (*move_iter)->draw_data.time_before_drag;
 					}
 
 					if (remove_iter != t->keyframes.end()) {
-						delete *remove_iter;
-						t->keyframes.erase(remove_iter);
+						if (!data->on_delete_keyframe || data->on_delete_keyframe(data->callback_userdata, t->user_pointer, (*remove_iter)->user_pointer)) {
+							delete *remove_iter;
+							t->keyframes.erase(remove_iter);
+							keyframes_modified = true;
+						}
 					}
 				}
 			}
@@ -429,6 +469,7 @@ namespace kf {
 					else if (p > data->Duration) p = data->Duration;
 					data->CurrentTime = p;
 					data->draw_data.scrubbing = true;
+					if (data->on_seek) data->on_seek(data->callback_userdata, p);	
 				}
 			}
 
@@ -437,7 +478,8 @@ namespace kf {
 					float p = x_to_sec(mp.x);
 					if (p < 0.0f) p = 0.0f;
 					else if (p > data->Duration) p = data->Duration;
-					data->CurrentTime = p;
+					if (data->on_seek && (p < data->CurrentTime - 0.0001f || p > data->CurrentTime + 0.0001f)) data->on_seek(data->callback_userdata, p);
+					data->CurrentTime = p;	
 				}
 				if (data->draw_data.scrolling) {
 					float dx = mp.x - data->draw_data.scroll_start_x;
